@@ -63,7 +63,7 @@ CREATE TABLE Students (
 );
 
 CREATE TABLE Users (
-    UserID INT PRIMARY KEY,
+    UserID INT AUTO_INCREMENT PRIMARY KEY,
     Username VARCHAR(100),
     Password VARCHAR(100),
     UserType ENUM('teacher', 'student'),
@@ -77,10 +77,93 @@ CREATE TABLE Grades (
     GradeID INT AUTO_INCREMENT PRIMARY KEY,
     StudentID INT,
     SubjectID INT,
+    Percentage DECIMAL(3,2) CHECK (Percentage IN(0.10, 0.40, 0.50)),
     Score DECIMAL(4,2),
     FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
     FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
 );
+
+-- Trigger: Sau khi thêm giáo viên 
+DELIMITER //
+
+CREATE TRIGGER after_teacher_insert
+AFTER INSERT ON Teachers
+FOR EACH ROW
+BEGIN
+    INSERT INTO Users (Username, Password, UserType, TeacherID)
+    VALUES (NEW.TeacherName, 'default_password', 'teacher', NEW.TeacherID);
+END //
+
+DELIMITER ;
+
+-- Trigger: Sau khi thêm học sinh 
+DELIMITER //
+
+CREATE TRIGGER after_student_insert
+AFTER INSERT ON Students
+FOR EACH ROW
+BEGIN
+    INSERT INTO Users (Username, Password, UserType, StudentID)
+    VALUES (NEW.StudentName, 'default_password', 'student', NEW.StudentID);
+END//
+
+DELIMITER ;
+
+-- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
+DELIMITER //
+
+CREATE TRIGGER generate_student_code
+BEFORE INSERT ON Students
+FOR EACH ROW
+BEGIN
+    DECLARE year_suffix VARCHAR(2);
+    DECLARE new_code VARCHAR(20);
+    
+    SET year_suffix = RIGHT(YEAR(CURDATE()), 2); -- Lấy 2 số cuối của năm hiện tại (ví dụ 24)
+    SET new_code = CONCAT('HS', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Students), 4, '0'));
+    
+    SET NEW.StudentCode = new_code;
+END//
+
+DELIMITER ;
+
+
+-- Trigger: Tự động tạo mã giáo viên dạng "GV24-0001" 
+DELIMITER //
+
+CREATE TRIGGER generate_teacher_code
+BEFORE INSERT ON Teachers
+FOR EACH ROW
+BEGIN
+    DECLARE year_suffix VARCHAR(2);
+    DECLARE new_code VARCHAR(20);
+
+    SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
+    SET new_code = CONCAT('GV', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Teachers), 4, '0'));
+
+    SET NEW.TeacherCode = new_code;
+END//
+
+DELIMITER ;
+
+-- Trigger: Tự động tạo mã Admin dạng "AD24-0001"
+DELIMITER //
+
+CREATE TRIGGER generate_admin_code
+BEFORE INSERT ON Admins
+FOR EACH ROW
+BEGIN
+    DECLARE year_suffix VARCHAR(2);
+    DECLARE new_code VARCHAR(20);
+
+    SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
+    SET new_code = CONCAT('AD', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Admins), 4, '0'));
+
+    SET NEW.AdminCode = new_code;
+END//
+
+DELIMITER ;
+
 
 INSERT INTO Teachers (TeacherName, Subject, Email) VALUES
 ('Nguyen Van A', 'Math', 'a.nguyen@school.edu.vn'),
@@ -95,85 +178,62 @@ INSERT INTO Teachers (TeacherName, Subject, Email) VALUES
 ('Pham Van J', 'PE', 'j.pham@school.edu.vn');
 
 INSERT INTO Subjects (SubjectName) VALUES
-('Math'), ('Physics'), ('Chemistry'), ('Biology'), ('English'),
-('History'), ('Geography'), ('IT'), ('Literature'), ('PE');
+('Math'), ('English'), ('History');
 
 INSERT INTO Classes (ClassName, TeacherID) VALUES
-('10A1', 1), ('10A2', 2), ('10A3', 3), ('10B1', 4), ('10B2', 5),
-('11A1', 6), ('11A2', 7), ('11B1', 8), ('11B2', 9), ('12A1', 10);
+('10A1', 1), ('10A2', 2), ('10A3', 3), ('11A1', 6), ('11A2', 7);
 
 INSERT INTO Students (StudentName, BirthDate, ClassID, Address) VALUES
 ('Nguyen Tuan', '2007-03-05', 1, 'Hanoi'),
 ('Nguyen Minh', '2007-04-15', 1, 'Hanoi'),
 ('Tran Khoa', '2007-02-20', 1, 'Hanoi'),
 ('Pham Lan', '2007-06-11', 1, 'Hanoi'),
-('Hoang Binh', '2007-09-01', 1, 'Hanoi'),
 
 ('Tran Anh', '2007-07-11', 2, 'Hanoi'),
 ('Le Giang', '2007-08-08', 2, 'Hung Yen'),
 ('Vu Anh', '2007-12-12', 2, 'Hung Yen'),
 ('Bui Quynh', '2007-03-03', 2, 'Ha Nam'),
-('Ngo Khanh', '2007-05-05', 2, 'Thai Binh'),
 
 ('Le Huyen', '2007-05-22', 3, 'Hai Phong'),
 ('Nguyen Ha', '2007-06-30', 3, 'Hai Duong'),
 ('Phan Linh', '2007-09-09', 3, 'Hai Phong'),
 ('Doan Phuong', '2007-04-04', 3, 'Nam Dinh'),
-('Tran Trang', '2007-10-10', 3, 'Haiphong'),
 
 ('Pham Nam', '2007-10-01', 4, 'Da Nang'),
 ('Doan Nam', '2007-05-18', 4, 'Hue'),
 ('Tran Hieu', '2007-11-01', 4, 'Da Nang'),
 ('Nguyen Hanh', '2007-08-02', 4, 'Da Nang'),
-('Ngo Bao', '2007-12-21', 4, 'Hue'),
 
 ('Do Linh', '2007-01-30', 5, 'HCM City'),
 ('Ngo Hanh', '2007-03-03', 5, 'Can Tho'),
 ('Pham Binh', '2007-07-21', 5, 'HCM City'),
-('Bui Ngan', '2007-09-19', 5, 'Vung Tau'),
-('Tran Tien', '2007-11-11', 5, 'Binh Duong'),
+('Bui Ngan', '2007-09-19', 5, 'Vung Tau');
 
-('Hoang Long', '2006-09-14', 6, 'Quang Ninh'),
-('Mai Lan', '2006-10-10', 6, 'Quang Ninh'),
-('Hoang Hieu', '2006-03-29', 6, 'Hai Phong'),
-('Le Tuan', '2006-01-01', 6, 'Quang Ninh'),
-('Tran Hoa', '2006-12-12', 6, 'Bac Kan'),
+INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
+(1, 1, 0.10, 9.0), (1, 1, 0.40, 7.5), (1, 1, 0.50, 8.0), 
+(1, 2, 0.10, 10.0), (1, 2, 0.40, 6.0), (1, 2, 0.50, 7.5), 
+(1, 3, 0.10, 10.0), (1, 3, 0.40, 7.5), (1, 3, 0.50, 9.5),
 
-('Bui Thao', '2006-12-25', 7, 'Nghe An'),
-('Nguyen Chi', '2006-11-11', 7, 'Nghe An'),
-('Vu Trang', '2006-07-07', 7, 'Thanh Hoa'),
-('Dang Hoa', '2006-02-02', 7, 'Nghe An'),
-('Pham Son', '2006-04-04', 7, 'Ha Tinh'),
+(2, 1, 0.10, 9.5), (2, 1, 0.40, 8.0), (2, 1, 0.50, 9.0), 
+(2, 2, 0.10, 10.0), (2, 2, 0.40, 6.5), (2, 2, 0.50, 8.0), 
+(2, 3, 0.10, 9.0), (2, 3, 0.40, 9.0), (2, 3, 0.50, 9.0),
 
-('Dang Tuan', '2006-08-07', 8, 'Bac Ninh'),
-('Bui Minh', '2006-02-02', 8, 'Bac Ninh'),
-('Dang Chau', '2006-06-06', 8, 'Bac Giang'),
-('Tran Huy', '2006-09-09', 8, 'Bac Ninh'),
-('Nguyen Huan', '2006-05-05', 8, 'Lang Son'),
+(3, 1, 0.10, 9.0), (3, 1, 0.40, 8.5), (3, 1, 0.50, 7.5), 
+(3, 2, 0.10, 9.0), (3, 2, 0.40, 8.0), (3, 2, 0.50, 8.0), 
+(3, 3, 0.10, 10.0), (3, 3, 0.40, 9.5), (3, 3, 0.50, 9.5),
 
-('Ngo Mai', '2006-04-17', 9, 'Ninh Binh'),
-('Le Dung', '2006-01-01', 9, 'Hoa Binh'),
-('Pham Linh', '2006-05-05', 9, 'Hoa Binh'),
-('Nguyen Nhat', '2006-07-07', 9, 'Ha Nam'),
-('Tran Binh', '2006-06-06', 9, 'Ninh Binh'),
+(4, 1, 0.10, 10.0), (4, 1, 0.40, 7.0), (4, 1, 0.50, 6.5), 
+(4, 2, 0.10, 9.0), (4, 2, 0.40, 7.5), (4, 2, 0.50, 8.0), 
+(4, 3, 0.10, 10.0), (4, 3, 0.40, 7.0), (4, 3, 0.50, 8.5),
 
-('Pham Duong', '2006-06-18', 10, 'Ha Tinh'),
-('Tran Hoang', '2006-08-08', 10, 'Ha Tinh'),
-('Ngo Thanh', '2006-09-09', 10, 'Quang Tri'),
-('Le Yen', '2006-03-03', 10, 'Quang Binh'),
-('Bui Duy', '2006-11-11', 10, 'Ha Tinh');
+(5, 1, 0.10, 10.0), (5, 1, 0.40, 9.0), (5, 1, 0.50, 8.5), 
+(5, 2, 0.10, 10.0), (5, 2, 0.40, 7.5), (5, 2, 0.50, 9.0), 
+(5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5);
 
-INSERT INTO Grades (StudentID, SubjectID, Score) VALUES
-(1, 1, 8.5), (1, 2, 7.5),
-(2, 1, 9.0), (2, 3, 6.5),
-(3, 2, 8.0), (3, 4, 7.0),
-(4, 5, 6.0), (4, 1, 7.5),
-(5, 2, 8.8), (5, 3, 9.0),
-(6, 4, 6.5), (6, 5, 7.5),
-(7, 1, 8.0), (7, 2, 8.5),
-(8, 3, 9.0), (8, 4, 7.0),
-(9, 5, 6.0), (9, 1, 7.8),
-(10, 2, 8.5), (10, 3, 8.0);
+
+
+
+
 
 -- Add Grade with Teacher Check
 DELIMITER //
@@ -350,87 +410,5 @@ BEGIN
     END IF;
 END //
 DELIMITER ;
-
--- Trigger: Sau khi thêm giáo viên 
-DELIMITER //
-
-CREATE TRIGGER after_teacher_insert
-AFTER INSERT ON Teachers
-FOR EACH ROW
-BEGIN
-    INSERT INTO Users (UserID, Username, Password, UserType, TeacherID)
-    VALUES (NEW.TeacherID, NEW.TeacherName, 'default_password', 'teacher', NEW.TeacherID);
-END //
-
-DELIMITER ;
-
--- Trigger: Sau khi thêm học sinh 
-DELIMITER 
-
-CREATE TRIGGER after_student_insert
-AFTER INSERT ON Students
-FOR EACH ROW
-BEGIN
-    INSERT INTO Users (UserID, Username, Password, UserType, StudentID)
-    VALUES (NEW.StudentID, NEW.StudentName, 'default_password', 'student', NEW.StudentID);
-END//
-
-DELIMITER ;
-
--- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
-DELIMITER //
-
-CREATE TRIGGER generate_student_code
-BEFORE INSERT ON Students
-FOR EACH ROW
-BEGIN
-    DECLARE year_suffix VARCHAR(2);
-    DECLARE new_code VARCHAR(20);
-    
-    SET year_suffix = RIGHT(YEAR(CURDATE()), 2); -- Lấy 2 số cuối của năm hiện tại (ví dụ 24)
-    SET new_code = CONCAT('HS', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Students), 4, '0'));
-    
-    SET NEW.StudentCode = new_code;
-END//
-
-DELIMITER ;
-
-
--- Trigger: Tự động tạo mã giáo viên dạng "GV24-0001" 
-DELIMITER //
-
-CREATE TRIGGER generate_teacher_code
-BEFORE INSERT ON Teachers
-FOR EACH ROW
-BEGIN
-    DECLARE year_suffix VARCHAR(2);
-    DECLARE new_code VARCHAR(20);
-
-    SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
-    SET new_code = CONCAT('GV', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Teachers), 4, '0'));
-
-    SET NEW.TeacherCode = new_code;
-END//
-
-DELIMITER ;
-
--- Trigger: Tự động tạo mã Admin dạng "AD24-0001"
-DELIMITER //
-
-CREATE TRIGGER generate_admin_code
-BEFORE INSERT ON Admins
-FOR EACH ROW
-BEGIN
-    DECLARE year_suffix VARCHAR(2);
-    DECLARE new_code VARCHAR(20);
-
-    SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
-    SET new_code = CONCAT('AD', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Admins), 4, '0'));
-
-    SET NEW.AdminCode = new_code;
-END//
-
-DELIMITER ;
-
 
 
