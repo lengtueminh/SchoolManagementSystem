@@ -83,32 +83,6 @@ CREATE TABLE Grades (
     FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
 );
 
--- Trigger: Sau khi thêm giáo viên 
-DELIMITER //
-
-CREATE TRIGGER after_teacher_insert
-AFTER INSERT ON Teachers
-FOR EACH ROW
-BEGIN
-    INSERT INTO Users (Username, Password, UserType, TeacherID)
-    VALUES (NEW.TeacherName, 'default_password', 'teacher', NEW.TeacherID);
-END //
-
-DELIMITER ;
-
--- Trigger: Sau khi thêm học sinh 
-DELIMITER //
-
-CREATE TRIGGER after_student_insert
-AFTER INSERT ON Students
-FOR EACH ROW
-BEGIN
-    INSERT INTO Users (Username, Password, UserType, StudentID)
-    VALUES (NEW.StudentName, 'default_password', 'student', NEW.StudentID);
-END//
-
-DELIMITER ;
-
 -- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
 DELIMITER //
 
@@ -164,6 +138,31 @@ END//
 
 DELIMITER ;
 
+-- Trigger: Sau khi thêm giáo viên 
+DELIMITER //
+
+CREATE TRIGGER after_teacher_insert
+AFTER INSERT ON Teachers
+FOR EACH ROW
+BEGIN
+    INSERT INTO Users (Username, Password, UserType, TeacherID)
+    VALUES (NEW.TeacherCode, 'default_password', 'teacher', NEW.TeacherID);
+END //
+
+DELIMITER ;
+
+-- Trigger: Sau khi thêm học sinh 
+DELIMITER //
+
+CREATE TRIGGER after_student_insert
+AFTER INSERT ON Students
+FOR EACH ROW
+BEGIN
+    INSERT INTO Users (Username, Password, UserType, StudentID)
+    VALUES (NEW.StudentCode, 'default_password', 'student', NEW.StudentID);
+END//
+
+DELIMITER ;
 
 INSERT INTO Teachers (TeacherName, Subject, Email) VALUES
 ('Nguyen Van A', 'Math', 'a.nguyen@school.edu.vn'),
@@ -405,6 +404,34 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Access Denied: Admin only.';
     END IF;
 END //
+DELIMITER ;
+
+-- Admin change user's password / users change their password.
+DELIMITER //
+
+CREATE PROCEDURE sp_ChangePassword(
+    IN p_RequestUserID INT,    
+    IN p_TargetUserID INT,     
+    IN p_NewPassword VARCHAR(255)
+)
+BEGIN
+    DECLARE v_RequestUserType VARCHAR(50);
+
+    SELECT UserType INTO v_RequestUserType
+    FROM Users
+    WHERE UserID = p_RequestUserID;
+
+    -- Role checking
+    IF v_RequestUserType = 'admin' OR p_RequestUserID = p_TargetUserID THEN
+        UPDATE Users
+        SET Password = p_NewPassword
+        WHERE UserID = p_TargetUserID;
+    ELSE
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Permission denied to change password.';
+    END IF;
+END //
+
 DELIMITER ;
 
 
