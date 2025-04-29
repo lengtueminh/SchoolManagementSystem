@@ -231,16 +231,13 @@ INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
 (5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5);
 
 
-
-
-
-
 -- Add Grade with Teacher Check
 DELIMITER //
 CREATE PROCEDURE AddGrade(
     IN p_TeacherID INT,
     IN p_StudentID INT,
     IN p_SubjectID INT,
+    IN p_Percentage DECIMAL(3,2),
     IN p_Score DECIMAL(4,2)
 )
 BEGIN
@@ -251,13 +248,12 @@ BEGIN
     SELECT TeacherID INTO v_TeacherClassID FROM Classes WHERE ClassID = v_ClassID;
 
     IF v_TeacherClassID = p_TeacherID THEN
-        INSERT INTO Grades (StudentID, SubjectID, Score)
-        VALUES (p_StudentID, p_SubjectID, p_Score);
+        INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
+        VALUES (p_StudentID, p_SubjectID, p_Percentage, p_Score);
     ELSE
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unauthorized: Teacher does not teach this student.';
     END IF;
 END //
-DELIMITER ;
 
 -- Update Grade with Teacher Check
 DELIMITER //
