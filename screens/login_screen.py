@@ -127,8 +127,13 @@ class LoginScreen(MDScreen):
 
         if result:
             print(f"Login successful as {role}")
-            # Nếu đăng nhập thành công, chuyển sang màn hình khác
-            # self.manager.current = "admin_screen" if role == "Admin" else "student_screen"
+            # Chuyển đến màn hình phù hợp sau khi đăng nhập thành công
+            # if role == "Admin":
+            #     self.manager.current = "admin_screen"
+            # elif role == "Student":
+            #     self.manager.current = "student_screen"
+            # else:
+            #     self.manager.current = "teacher_screen"
         else:
             print("Login failed. Wrong username, password or role!")
 
