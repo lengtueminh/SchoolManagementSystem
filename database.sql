@@ -10,6 +10,7 @@ USE SchoolManagementSystem;
 -- - Subjects: SubjectID, SubjectName
 -- - Classes: ClassID, ClassName, TeacherID 
 -- - Grades: GradeID, SubjectID, StudentID, Score 
+-- - Teacher_Class_Subject 
 
 -- Các Stored Procedures đã có:
 -- - Add grade with Teacher check (giáo viên chỉ thêm được điểm lớp mình dạy)
@@ -66,11 +67,13 @@ CREATE TABLE Users (
     UserID INT AUTO_INCREMENT PRIMARY KEY,
     Username VARCHAR(100),
     Password VARCHAR(100),
-    UserType ENUM('teacher', 'student'),
+    UserType ENUM('teacher', 'student','admin'),
     TeacherID INT NULL,
     StudentID INT NULL,
+    AdminID INT NULL,
     FOREIGN KEY (TeacherID) REFERENCES Teachers(TeacherID),
-    FOREIGN KEY (StudentID) REFERENCES Students(StudentID)
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (AdminID) REFERENCES Admins(AdminID)
 );
 
 CREATE TABLE Grades (
@@ -82,6 +85,17 @@ CREATE TABLE Grades (
     FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
     FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
 );
+
+CREATE TABLE Teacher_Class_Subject (
+    ID INT AUTO_INCREMENT PRIMARY KEY,
+    TeacherID INT,
+    ClassID INT,
+    SubjectID INT,
+    FOREIGN KEY (TeacherID) REFERENCES Teachers(TeacherID),
+    FOREIGN KEY (ClassID) REFERENCES Classes(ClassID),
+    FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
+);
+
 
 -- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
 DELIMITER //
@@ -163,72 +177,6 @@ BEGIN
 END//
 
 DELIMITER ;
-
-INSERT INTO Teachers (TeacherName, Subject, Email) VALUES
-('Nguyen Van A', 'Math', 'a.nguyen@school.edu.vn'),
-('Tran Thi B', 'Physics', 'b.tran@school.edu.vn'),
-('Le Van C', 'Chemistry', 'c.le@school.edu.vn'),
-('Pham Thi D', 'Biology', 'd.pham@school.edu.vn'),
-('Do Van E', 'English', 'e.do@school.edu.vn'),
-('Hoang Thi F', 'History', 'f.hoang@school.edu.vn'),
-('Bui Van G', 'Geography', 'g.bui@school.edu.vn'),
-('Dang Thi H', 'IT', 'h.dang@school.edu.vn'),
-('Ngo Van I', 'Literature', 'i.ngo@school.edu.vn'),
-('Pham Van J', 'PE', 'j.pham@school.edu.vn');
-
-INSERT INTO Subjects (SubjectName) VALUES
-('Math'), ('English'), ('History');
-
-INSERT INTO Classes (ClassName, TeacherID) VALUES
-('10A1', 1), ('10A2', 2), ('10A3', 3), ('11A1', 6), ('11A2', 7);
-
-INSERT INTO Students (StudentName, BirthDate, ClassID, Address) VALUES
-('Nguyen Tuan', '2007-03-05', 1, 'Hanoi'),
-('Nguyen Minh', '2007-04-15', 1, 'Hanoi'),
-('Tran Khoa', '2007-02-20', 1, 'Hanoi'),
-('Pham Lan', '2007-06-11', 1, 'Hanoi'),
-
-('Tran Anh', '2007-07-11', 2, 'Hanoi'),
-('Le Giang', '2007-08-08', 2, 'Hung Yen'),
-('Vu Anh', '2007-12-12', 2, 'Hung Yen'),
-('Bui Quynh', '2007-03-03', 2, 'Ha Nam'),
-
-('Le Huyen', '2007-05-22', 3, 'Hai Phong'),
-('Nguyen Ha', '2007-06-30', 3, 'Hai Duong'),
-('Phan Linh', '2007-09-09', 3, 'Hai Phong'),
-('Doan Phuong', '2007-04-04', 3, 'Nam Dinh'),
-
-('Pham Nam', '2007-10-01', 4, 'Da Nang'),
-('Doan Nam', '2007-05-18', 4, 'Hue'),
-('Tran Hieu', '2007-11-01', 4, 'Da Nang'),
-('Nguyen Hanh', '2007-08-02', 4, 'Da Nang'),
-
-('Do Linh', '2007-01-30', 5, 'HCM City'),
-('Ngo Hanh', '2007-03-03', 5, 'Can Tho'),
-('Pham Binh', '2007-07-21', 5, 'HCM City'),
-('Bui Ngan', '2007-09-19', 5, 'Vung Tau');
-
-INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
-(1, 1, 0.10, 9.0), (1, 1, 0.40, 7.5), (1, 1, 0.50, 8.0), 
-(1, 2, 0.10, 10.0), (1, 2, 0.40, 6.0), (1, 2, 0.50, 7.5), 
-(1, 3, 0.10, 10.0), (1, 3, 0.40, 7.5), (1, 3, 0.50, 9.5),
-
-(2, 1, 0.10, 9.5), (2, 1, 0.40, 8.0), (2, 1, 0.50, 9.0), 
-(2, 2, 0.10, 10.0), (2, 2, 0.40, 6.5), (2, 2, 0.50, 8.0), 
-(2, 3, 0.10, 9.0), (2, 3, 0.40, 9.0), (2, 3, 0.50, 9.0),
-
-(3, 1, 0.10, 9.0), (3, 1, 0.40, 8.5), (3, 1, 0.50, 7.5), 
-(3, 2, 0.10, 9.0), (3, 2, 0.40, 8.0), (3, 2, 0.50, 8.0), 
-(3, 3, 0.10, 10.0), (3, 3, 0.40, 9.5), (3, 3, 0.50, 9.5),
-
-(4, 1, 0.10, 10.0), (4, 1, 0.40, 7.0), (4, 1, 0.50, 6.5), 
-(4, 2, 0.10, 9.0), (4, 2, 0.40, 7.5), (4, 2, 0.50, 8.0), 
-(4, 3, 0.10, 10.0), (4, 3, 0.40, 7.0), (4, 3, 0.50, 8.5),
-
-(5, 1, 0.10, 10.0), (5, 1, 0.40, 9.0), (5, 1, 0.50, 8.5), 
-(5, 2, 0.10, 10.0), (5, 2, 0.40, 7.5), (5, 2, 0.50, 9.0), 
-(5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5);
-
 
 -- Add Grade with Teacher Check
 DELIMITER //
@@ -434,4 +382,73 @@ END //
 
 DELIMITER ;
 
+INSERT INTO Teachers (TeacherName, Subject, Email) VALUES
+('Nguyen Van A', 'Math', 'a.nguyen@school.edu.vn'),
+('Tran Thi B', 'Physics', 'b.tran@school.edu.vn'),
+('Le Van C', 'Chemistry', 'c.le@school.edu.vn'),
+('Pham Thi D', 'Biology', 'd.pham@school.edu.vn'),
+('Do Van E', 'English', 'e.do@school.edu.vn'),
+('Hoang Thi F', 'History', 'f.hoang@school.edu.vn'),
+('Bui Van G', 'Geography', 'g.bui@school.edu.vn'),
+('Dang Thi H', 'IT', 'h.dang@school.edu.vn'),
+('Ngo Van I', 'Literature', 'i.ngo@school.edu.vn'),
+('Pham Van J', 'PE', 'j.pham@school.edu.vn');
 
+INSERT INTO Subjects (SubjectName) VALUES
+('Math'), ('English'), ('History');
+
+INSERT INTO Classes (ClassName, TeacherID) VALUES
+('10A1', 1), ('10A2', 2), ('10A3', 3), ('11A1', 6), ('11A2', 7);
+
+INSERT INTO Students (StudentName, BirthDate, ClassID, Address) VALUES
+('Nguyen Tuan', '2007-03-05', 1, 'Hanoi'),
+('Nguyen Minh', '2007-04-15', 1, 'Hanoi'),
+('Tran Khoa', '2007-02-20', 1, 'Hanoi'),
+('Pham Lan', '2007-06-11', 1, 'Hanoi'),
+
+('Tran Anh', '2007-07-11', 2, 'Hanoi'),
+('Le Giang', '2007-08-08', 2, 'Hung Yen'),
+('Vu Anh', '2007-12-12', 2, 'Hung Yen'),
+('Bui Quynh', '2007-03-03', 2, 'Ha Nam'),
+
+('Le Huyen', '2007-05-22', 3, 'Hai Phong'),
+('Nguyen Ha', '2007-06-30', 3, 'Hai Duong'),
+('Phan Linh', '2007-09-09', 3, 'Hai Phong'),
+('Doan Phuong', '2007-04-04', 3, 'Nam Dinh'),
+
+('Pham Nam', '2007-10-01', 4, 'Da Nang'),
+('Doan Nam', '2007-05-18', 4, 'Hue'),
+('Tran Hieu', '2007-11-01', 4, 'Da Nang'),
+('Nguyen Hanh', '2007-08-02', 4, 'Da Nang'),
+
+('Do Linh', '2007-01-30', 5, 'HCM City'),
+('Ngo Hanh', '2007-03-03', 5, 'Can Tho'),
+('Pham Binh', '2007-07-21', 5, 'HCM City'),
+('Bui Ngan', '2007-09-19', 5, 'Vung Tau');
+
+INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
+(1, 1, 0.10, 9.0), (1, 1, 0.40, 7.5), (1, 1, 0.50, 8.0), 
+(1, 2, 0.10, 10.0), (1, 2, 0.40, 6.0), (1, 2, 0.50, 7.5), 
+(1, 3, 0.10, 10.0), (1, 3, 0.40, 7.5), (1, 3, 0.50, 9.5),
+
+(2, 1, 0.10, 9.5), (2, 1, 0.40, 8.0), (2, 1, 0.50, 9.0), 
+(2, 2, 0.10, 10.0), (2, 2, 0.40, 6.5), (2, 2, 0.50, 8.0), 
+(2, 3, 0.10, 9.0), (2, 3, 0.40, 9.0), (2, 3, 0.50, 9.0),
+
+(3, 1, 0.10, 9.0), (3, 1, 0.40, 8.5), (3, 1, 0.50, 7.5), 
+(3, 2, 0.10, 9.0), (3, 2, 0.40, 8.0), (3, 2, 0.50, 8.0), 
+(3, 3, 0.10, 10.0), (3, 3, 0.40, 9.5), (3, 3, 0.50, 9.5),
+
+(4, 1, 0.10, 10.0), (4, 1, 0.40, 7.0), (4, 1, 0.50, 6.5), 
+(4, 2, 0.10, 9.0), (4, 2, 0.40, 7.5), (4, 2, 0.50, 8.0), 
+(4, 3, 0.10, 10.0), (4, 3, 0.40, 7.0), (4, 3, 0.50, 8.5),
+
+(5, 1, 0.10, 10.0), (5, 1, 0.40, 9.0), (5, 1, 0.50, 8.5), 
+(5, 2, 0.10, 10.0), (5, 2, 0.40, 7.5), (5, 2, 0.50, 9.0), 
+(5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5);
+
+INSERT INTO Teacher_Class_Subject (TeacherID, ClassID, SubjectID)
+VALUES (1, 2, 3);
+
+select * from Users;
+select * from Teacher_Class_Subject;
