@@ -13,3 +13,23 @@ def connect_db():
     except Error as e:
         print(f"Database connection error: {e}")
         return None
+    
+def get_teacher_name(teacher_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "SELECT TeacherName FROM Teachers WHERE TeacherCode = %s"
+            cursor.execute(query, (teacher_code,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]  
+            else:
+                return None
+        except Error as e:
+            print(f"Error fetching teacher name: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
