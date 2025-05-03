@@ -33,3 +33,48 @@ def get_teacher_name(teacher_code):
             cursor.close()
             connection.close()
     return None
+
+def get_teacher_details(teacher_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "SELECT TeacherName, Email FROM Teachers WHERE TeacherCode = %s"
+            cursor.execute(query, (teacher_code,))
+            result = cursor.fetchone()
+            if result:
+                return {
+                    "teacher_name": result[0],
+                    "email": result[1]
+                }
+            else:
+                return None
+        except Error as e:
+            print(f"Error fetching teacher details: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_teacher_classes(teacher_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = """
+                SELECT ClassName 
+                FROM Classes
+                WHERE TeacherCode = %s
+            """
+            cursor.execute(query, (teacher_code,))
+            result = cursor.fetchall()
+            classes = [{"class_name": row[0], "subject_name": row[1]} for row in result]
+            return classes
+        except Error as e:
+            print(f"Error fetching teacher classes: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
