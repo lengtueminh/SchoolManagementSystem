@@ -1,5 +1,6 @@
 # screens/login_screen.py
 from kivymd.uix.screen import MDScreen
+from kivymd.app import MDApp
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -112,6 +113,10 @@ class LoginScreen(MDScreen):
         pw = self.password.text
         role = self.role_field.text
 
+        app = MDApp.get_running_app()
+        app.username = user
+        app.role = role
+
         if not user or not pw or not role:
             print("Please fill all fields!")
             return
@@ -126,10 +131,10 @@ class LoginScreen(MDScreen):
         result = cursor.fetchone()
 
         if result:
-            print(f"Login successful as {role}")
+            print(f"Login successful as {role}; user: {user}")
             # Chuyển đến màn hình phù hợp sau khi đăng nhập thành công
-            # if role == "Admin":
-            #     self.manager.current = "admin_screen"
+            if role == "Teacher":
+                self.manager.current = "teacher_homescreen"
             # elif role == "Student":
             #     self.manager.current = "student_screen"
             # else:
