@@ -6,7 +6,7 @@ def connect_db():
         connection = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="tueminh25", 
+            password="tueminh25",    # CHANGE PASSWORD HERE 
             database="SchoolManagementSystem"
         )
         return connection
@@ -104,12 +104,17 @@ def get_student_details(student_code):
     if connection:
         try:
             cursor = connection.cursor()
-            query = "SELECT StudentName FROM Students WHERE StudentCode = %s"
+            query = "SELECT StudentName, StudentID, StudentCode, BirthDate, ClassID, Address FROM Students WHERE StudentCode = %s"
             cursor.execute(query, (student_code,))
             result = cursor.fetchone()
             if result:
                 return {
-                    "student_name": result[0]
+                    "student_name": result[0], 
+                    "student_id": result[1], 
+                    "student_code": result[2], 
+                    "birthdate": result[3], 
+                    "class_id": result[4], 
+                    "address": result[5]	
                 }
             else:
                 return None
@@ -126,25 +131,15 @@ def get_student_classes(student_code):
     if connection:
         try:
             cursor = connection.cursor()
-            query = """
-                SELECT 
-                    c.ClassName,
-                    s.SubjectName,
-                    t.TeacherName
-                FROM Students stu
-                JOIN Classes c ON stu.ClassID = c.ClassID
-                JOIN Teacher_Class_Subject tcs ON c.ClassID = tcs.ClassID
-                JOIN Teachers t ON tcs.TeacherID = t.TeacherID
-                JOIN Subjects s ON tcs.SubjectID = s.SubjectID
-                WHERE stu.StudentID = %s
+            query = """ 
+            CALL GetSubjectsAndTeachersFromCode(%s);
             """
             cursor.execute(query, (student_code,))
             result = cursor.fetchall()
             classes = [
                 {
-                    "class_name": row[0],
-                    "subject_name": row[1],
-                    "teacher_name": row[2]
+                    "subject_name": row[0],
+                    "teacher_name": row[1]
                 }
                 for row in result
             ]
@@ -157,35 +152,51 @@ def get_student_classes(student_code):
             connection.close()
     return []
 
-def get_student_grades(student_code):
+
+
+def update_student_details(student_code, new_name, new_address):
     connection = connect_db()
     if connection:
         try:
             cursor = connection.cursor()
             query = """
-                SELECT 
-                    s.SubjectName,
-                    g.Percentage,
-                    g.Score
-                FROM Grades g
-                JOIN Subjects s ON g.SubjectID = s.SubjectID
-                WHERE g.StudentID = %s
+                UPDATE Students
+                SET StudentName = %s, Address = %s
+                WHERE StudentCode = %s
             """
-            cursor.execute(query, (student_code,))
-            result = cursor.fetchall()
-            grades = [
-                {
-                    "subject_name": row[0],
-                    "percentage": float(row[1]),
-                    "score": float(row[2])
-                }
-                for row in result
-            ]
-            return grades
-        except Error as e:
-            print(f"Error fetching student grades: {e}")
-            return []
+            cursor.execute(query, (new_name, new_address, student_code))
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Failed to update student: {e}")
+            return False
         finally:
             cursor.close()
             connection.close()
-    return []
+    return False
+
+
+def get_student_grades(student_code):
+    conn = connect_db()  # Kết nối cơ sở dữ liệu
+    cursor = conn.cursor(dictionary=True)
+
+    # Gọi Stored Procedure GetStudentSubjectsGradesByCode để lấy điểm theo môn
+    cursor.callproc('GetStudentSubjectsGradesByCode', [student_code])
+    
+    # Gọi Stored Procedure GetStudentGPAByCode để lấy GPA tổng
+    cursor.callproc('GetStudentGPAByCode', [student_code])
+
+    result_subjects = []
+    result_gpa_total = None
+
+    # Lấy dữ liệu bảng điểm từng môn
+    for result in cursor.stored_results():
+        if result.column_names == ('SubjectName', 'Score_10', 'Score_40', 'Score_50', 'GPA_Subject'):
+            result_subjects = result.fetchall()
+        elif result.column_names == ('GPA_Total',):
+            result_gpa_total = result.fetchone()
+
+    conn.close()
+    
+    # Trả về bảng điểm môn học và GPA tổng
+    return result_subjects, result_gpa_total['GPA_Total'] if result_gpa_total else None
