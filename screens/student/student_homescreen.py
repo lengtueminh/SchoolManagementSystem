@@ -109,16 +109,31 @@ class StudentHomeScreen(MDScreen):
     def edit_student_details(self, instance):
         self.dialog.dismiss()
 
-        # Tạo form nhập thông tin mới
-        self.name_input = MDTextField(hint_text="Name")
-        self.address_input = MDTextField(hint_text="Address")
+        app = MDApp.get_running_app()
+        student_code = app.username  # Giả sử username là mã sinh viên
+
+        # Lấy dữ liệu hiện tại
+        student = get_student_details(student_code)
+        if not student:
+            print("Không thể lấy thông tin sinh viên.")
+            return
+
+        # Tạo form nhập, gán dữ liệu hiện tại
+        self.name_input = MDTextField(
+            hint_text="Name",
+            text=student["student_name"]
+        )
+        self.address_input = MDTextField(
+            hint_text="Address",
+            text=student["address"]
+        )
 
         content = MDBoxLayout(orientation="vertical", spacing=10, adaptive_height=True)
         content.add_widget(self.name_input)
         content.add_widget(self.address_input)
 
         self.edit_dialog = MDDialog(
-            title="Change information",
+            title="Change Information",
             type="custom",
             content_cls=content,
             buttons=[
@@ -128,11 +143,17 @@ class StudentHomeScreen(MDScreen):
         )
         self.edit_dialog.open()
 
+
     def save_updated_student(self, instance):
         app = MDApp.get_running_app()
         student_code = app.username
-        new_name = self.name_input.text
-        new_address = self.address_input.text
+        new_name = self.name_input.text.strip()
+        new_address = self.address_input.text.strip()
+
+        # Kiểm tra rỗng
+        if not new_name or not new_address:
+            toast("Please fill in all fields.")
+            return
 
         success = update_student_details(student_code, new_name, new_address)
         self.edit_dialog.dismiss()
@@ -141,6 +162,7 @@ class StudentHomeScreen(MDScreen):
             toast("Updated successfully!")
         else:
             toast("Failed to update!")
+
 
 
     def view_results(self, instance):
