@@ -23,36 +23,52 @@ class TeacherHomeScreen(MDScreen):
         welcome_label = MDLabel(
             text=f"Welcome back, {teacher_name} ({teacher_code})!",
             halign="center",
-            pos_hint={"center_y": 0.9}
+            pos_hint={"center_y": 0.95},
+            font_style="H6"
         )
 
-        teacher_info = BoxLayout(orientation="vertical", spacing=10, size_hint_y=None, height=200)
+        teacher_info = BoxLayout(orientation="vertical", spacing=5, size_hint_y=None, height=80)
         teacher_info.add_widget(MDLabel(text=f"Name: {teacher_details['teacher_name']}", halign="center"))
         teacher_info.add_widget(MDLabel(text=f"Email: {teacher_details['email']}", halign="center"))
 
+        buttons_layout = BoxLayout(
+            orientation="vertical", 
+            spacing=15, 
+            size_hint=(0.6, None), 
+            height=300, 
+            pos_hint={"center_x": 0.5, "center_y": 0.45}
+        )
+
+        detail_button = MDRaisedButton(
+            text="Teacher's Details", 
+            # on_release=self.view_details
+        )
+
         classes_button = MDRaisedButton(
             text="View Classes",
-            pos_hint={"center_x": 0.5},
+            # pos_hint={"center_x": 0.5},
             on_release=self.view_classes
         )
 
         grade_button = MDRaisedButton(
             text="Grade Submission",
-            pos_hint={"center_x": 0.5},
+            # pos_hint={"center_x": 0.5},
             on_release=self.grade_submission
         )
-
         logout_button = MDRaisedButton(
             text="Log out",
-            pos_hint={"center_x": 0.5, "center_y": 0.4},
+            # pos_hint={"center_x": 0.5, "center_y": 0.4},
             on_release=self.logout
         )
 
+        buttons_layout.add_widget(detail_button)
+        buttons_layout.add_widget(classes_button)
+        buttons_layout.add_widget(grade_button)
+        buttons_layout.add_widget(logout_button)
+
         self.add_widget(welcome_label)
         self.add_widget(teacher_info)
-        self.add_widget(classes_button)
-        self.add_widget(grade_button)
-        self.add_widget(logout_button)
+        self.add_widget(buttons_layout)
 
     def logout(self, instance):
         app = MDApp.get_running_app()
