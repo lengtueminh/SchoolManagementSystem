@@ -10,21 +10,24 @@ USE SchoolManagementSystem;
 -- - Subjects: SubjectID, SubjectName
 -- - Classes: ClassID, ClassName, TeacherID 
 -- - Grades: GradeID, SubjectID, StudentID, Score 
--- - Teacher_Class_Subject 
+-- - Teacher_Class_Subject
 
 -- Các Stored Procedures đã có:
--- - Add grade with Teacher check (giáo viên chỉ thêm được điểm lớp mình dạy)
--- - Update grade with Teacher check (giáo viên chỉ sửa được điểm lớp mình dạy)
--- - Delete grade with Teacher check (giáo viên chỉ xóa được điểm lớp mình dạy)
+-- - Add grade with Teacher check (giáo viên chỉ thêm được điểm lớp mình dạy) --> CẦN SỬA: Không cần phân quyền 
+-- - Update grade with Teacher check (giáo viên chỉ sửa được điểm lớp mình dạy) --> CẦN SỬA: Không cần phân quyền 
+-- - Delete grade with Teacher check (giáo viên chỉ xóa được điểm lớp mình dạy) --> CẦN XÓA: Vì không được xóa điểm, chỉ được sửa 
 -- - Get Students list
 -- - Get Teachers list 
 -- - Get student's information by ID 
--- - Get student's grades by ID
--- - Admin adds/updates/deletes student 
+-- - Get student's grades by student's code 
+-- - Get student's GPA by student's code 
+-- - Get student's classes by student's code 
+-- - Admin adds/updates/deletes student --> CẦN SỬA: Không cần phân quyền 
 
 -- Các Triggers đã có:
 -- - Tự động tạo mã học sinh, giáo viên, admin theo dạng "XX24-0001"  
 -- - Truy xuất các môn học và giáo viên phụ trách theo StudentID 
+-- - TỰ động add user sau khi add gv hoặc hs 
 
 CREATE TABLE Teachers (
     TeacherID INT AUTO_INCREMENT PRIMARY KEY,
@@ -100,62 +103,49 @@ CREATE TABLE Teacher_Class_Subject (
 
 -- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
 DELIMITER //
-
 CREATE TRIGGER generate_student_code
 BEFORE INSERT ON Students
 FOR EACH ROW
 BEGIN
     DECLARE year_suffix VARCHAR(2);
     DECLARE new_code VARCHAR(20);
-    
     SET year_suffix = RIGHT(YEAR(CURDATE()), 2); -- Lấy 2 số cuối của năm hiện tại (ví dụ 24)
     SET new_code = CONCAT('HS', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Students), 4, '0'));
-    
     SET NEW.StudentCode = new_code;
 END//
-
 DELIMITER ;
 
 
 -- Trigger: Tự động tạo mã giáo viên dạng "GV24-0001" 
 DELIMITER //
-
 CREATE TRIGGER generate_teacher_code
 BEFORE INSERT ON Teachers
 FOR EACH ROW
 BEGIN
     DECLARE year_suffix VARCHAR(2);
     DECLARE new_code VARCHAR(20);
-
     SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
     SET new_code = CONCAT('GV', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Teachers), 4, '0'));
-
     SET NEW.TeacherCode = new_code;
 END//
-
 DELIMITER ;
 
 -- Trigger: Tự động tạo mã Admin dạng "AD24-0001"
 DELIMITER //
-
 CREATE TRIGGER generate_admin_code
 BEFORE INSERT ON Admins
 FOR EACH ROW
 BEGIN
     DECLARE year_suffix VARCHAR(2);
     DECLARE new_code VARCHAR(20);
-
     SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
     SET new_code = CONCAT('AD', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Admins), 4, '0'));
-
     SET NEW.AdminCode = new_code;
 END//
-
 DELIMITER ;
 
--- Trigger: Sau khi thêm giáo viên 
+-- Trigger: Add user sau khi thêm giáo viên 
 DELIMITER //
-
 CREATE TRIGGER after_teacher_insert
 AFTER INSERT ON Teachers
 FOR EACH ROW
@@ -163,12 +153,10 @@ BEGIN
     INSERT INTO Users (Username, Password, UserType, TeacherID)
     VALUES (NEW.TeacherCode, '12345', 'teacher', NEW.TeacherID);
 END //
-
 DELIMITER ;
 
--- Trigger: Sau khi thêm học sinh 
+-- Trigger: Add user sau khi thêm học sinh 
 DELIMITER //
-
 CREATE TRIGGER after_student_insert
 AFTER INSERT ON Students
 FOR EACH ROW
@@ -176,10 +164,9 @@ BEGIN
     INSERT INTO Users (Username, Password, UserType, StudentID)
     VALUES (NEW.StudentCode, '12345', 'student', NEW.StudentID);
 END//
-
 DELIMITER ;
 
--- Add Grade with Teacher Check
+-- Add Grade with Teacher Check --> CẦN SỬA: Không cần phân quyền 
 DELIMITER //
 CREATE PROCEDURE AddGrade(
     IN p_TeacherID INT,
@@ -191,10 +178,8 @@ CREATE PROCEDURE AddGrade(
 BEGIN
     DECLARE v_ClassID INT;
     DECLARE v_TeacherClassID INT;
-
     SELECT ClassID INTO v_ClassID FROM Students WHERE StudentID = p_StudentID;
     SELECT TeacherID INTO v_TeacherClassID FROM Classes WHERE ClassID = v_ClassID;
-
     IF v_TeacherClassID = p_TeacherID THEN
         INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
         VALUES (p_StudentID, p_SubjectID, p_Percentage, p_Score);
@@ -203,7 +188,7 @@ BEGIN
     END IF;
 END //
 
--- Update Grade with Teacher Check
+-- Update Grade with Teacher Check --> CẦN SỬA: Không cần phân quyền 
 DELIMITER //
 CREATE PROCEDURE UpdateGrade(
     IN p_TeacherID INT,
@@ -214,11 +199,9 @@ BEGIN
     DECLARE v_StudentID INT;
     DECLARE v_ClassID INT;
     DECLARE v_TeacherClassID INT;
-
     SELECT StudentID INTO v_StudentID FROM Grades WHERE GradeID = p_GradeID;
     SELECT ClassID INTO v_ClassID FROM Students WHERE StudentID = v_StudentID;
     SELECT TeacherID INTO v_TeacherClassID FROM Classes WHERE ClassID = v_ClassID;
-
     IF v_TeacherClassID = p_TeacherID THEN
         UPDATE Grades SET Score = p_Score WHERE GradeID = p_GradeID;
     ELSE
@@ -227,7 +210,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- Delete Grade with Teacher Check
+-- Delete Grade with Teacher Check --> GRADES SHOULD NOT BE DELETED --> WE SHOULD DELETE THIS SP 
 DELIMITER //
 CREATE PROCEDURE DeleteGrade(
     IN p_TeacherID INT,
@@ -237,11 +220,9 @@ BEGIN
     DECLARE v_StudentID INT;
     DECLARE v_ClassID INT;
     DECLARE v_TeacherClassID INT;
-
     SELECT StudentID INTO v_StudentID FROM Grades WHERE GradeID = p_GradeID;
     SELECT ClassID INTO v_ClassID FROM Students WHERE StudentID = v_StudentID;
     SELECT TeacherID INTO v_TeacherClassID FROM Classes WHERE ClassID = v_ClassID;
-
     IF v_TeacherClassID = p_TeacherID THEN
         DELETE FROM Grades WHERE GradeID = p_GradeID;
     ELSE
@@ -252,52 +233,35 @@ DELIMITER ;
 
 -- Stored Procedure: Lấy danh sách giáo viên 
 DELIMITER //
-
 CREATE PROCEDURE GetTeachers()
 BEGIN
-    SELECT UserID, Username, UserType
-    FROM Users
-    WHERE UserType = 'teacher';
+    SELECT TeacherID, TeacherCode, TeacherName
+    FROM Teachers;
 END//
-
 DELIMITER ;
 
 -- Stored Procedure: Lấy danh sách học sinh  
 DELIMITER //
-
 CREATE PROCEDURE GetStudents()
 BEGIN
-    SELECT UserID, Username, UserType
-    FROM Users
-    WHERE UserType = 'student';
+    SELECT StudentID, StudentCode, StudentName
+    FROM Students;
 END//
-
 DELIMITER ;
 
+-- Đang query trực tiếp trong code, check if we should keep this SP or not  
 -- Get Student Info (by ID)
-DELIMITER //
-CREATE PROCEDURE GetStudentInfo(
-    IN p_StudentID INT
-)
-BEGIN
-    SELECT * FROM Students WHERE StudentID = p_StudentID;
-END //
-DELIMITER ;
+-- DELIMITER //
+-- CREATE PROCEDURE GetStudentInfo(
+--     IN p_StudentID INT
+-- )
+-- BEGIN
+--     SELECT * FROM Students WHERE StudentID = p_StudentID;
+-- END //
+-- DELIMITER ;
 
--- Get Student Grades (by ID)
-DELIMITER //
-CREATE PROCEDURE GetStudentGrades(
-    IN p_StudentID INT
-)
-BEGIN
-    SELECT s.SubjectName, g.Score 
-    FROM Grades g
-    JOIN Subjects s ON g.SubjectID = s.SubjectID
-    WHERE g.StudentID = p_StudentID;
-END //
-DELIMITER ;
 
--- Admin Add Student
+-- Admin Add Student --> SỬA LẠI: KHÔNG CẦN CHECK QUYỀN 
 DELIMITER //
 CREATE PROCEDURE AdminAddStudent(
     IN p_AdminID INT,
@@ -316,7 +280,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- Admin Update Student
+-- Admin Update Student --> SỬA LẠI: KHÔNG CẦN CHECK QUYỀN 
 DELIMITER //
 CREATE PROCEDURE AdminUpdateStudent(
     IN p_AdminID INT,
@@ -340,7 +304,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- Admin Delete Student
+-- Admin Delete Student --> SỬA LẠI: KHÔNG CẦN CHECK QUYỀN 
 DELIMITER //
 CREATE PROCEDURE AdminDeleteStudent(
     IN p_AdminID INT,
@@ -355,9 +319,10 @@ BEGIN
 END //
 DELIMITER ;
 
+
+-- CHECK THIS
 -- Admin change user's password / users change their password.
 DELIMITER //
-
 CREATE PROCEDURE sp_ChangePassword(
     IN p_RequestUserID INT,    
     IN p_TargetUserID INT,     
@@ -380,7 +345,85 @@ BEGIN
             SET MESSAGE_TEXT = 'Permission denied to change password.';
     END IF;
 END //
+ 
+DELIMITER ;
+-- CHECK ABOVE
 
+
+-- SP: Get student's classes (subject and its teacher) by student's code (used in Student's screens (Classes))
+DELIMITER //
+
+CREATE PROCEDURE GetSubjectsAndTeachersFromCode(IN inputStudentCode VARCHAR(20))
+BEGIN
+    DECLARE sid INT;
+    -- Lấy StudentID từ StudentCode
+    SELECT StudentID INTO sid
+    FROM Students
+    WHERE StudentCode = inputStudentCode;
+    -- Truy xuất môn học và giáo viên từ StudentID
+    SELECT 
+        s.SubjectName,
+        t.TeacherName
+    FROM Students st
+    JOIN Classes c ON st.ClassID = c.ClassID
+    JOIN Teacher_Class_Subject tcs ON c.ClassID = tcs.ClassID
+    JOIN Teachers t ON tcs.TeacherID = t.TeacherID
+    JOIN Subjects s ON tcs.SubjectID = s.SubjectID
+    WHERE st.StudentID = sid;
+END//
+DELIMITER ;
+
+
+-- SP: Get student's grades by student's code (used in Student's screens (Academic Results)) 
+DELIMITER //
+CREATE PROCEDURE GetStudentSubjectsGradesByCode(IN p_StudentCode VARCHAR(20))
+BEGIN
+    DECLARE v_StudentID INT;
+    -- Lấy StudentID từ mã sinh viên
+    SELECT StudentID INTO v_StudentID
+    FROM Students
+    WHERE StudentCode = p_StudentCode;
+    -- Truy xuất điểm theo môn học, gồm các thành phần và GPA từng môn
+    SELECT 
+        s.SubjectName,
+        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
+        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
+        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
+        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
+    FROM Grades g
+    JOIN Subjects s ON g.SubjectID = s.SubjectID
+    WHERE g.StudentID = v_StudentID
+    GROUP BY s.SubjectName;
+END//
+DELIMITER ;
+
+
+-- SP: Get student's GPA by student's code (used in Student's screens (Academic Results)) 
+DELIMITER //
+CREATE PROCEDURE GetStudentGPAByCode(IN p_StudentCode VARCHAR(20))
+BEGIN
+    DECLARE v_StudentID INT;
+    -- Lấy StudentID từ mã sinh viên
+    SELECT StudentID INTO v_StudentID
+    FROM Students
+    WHERE StudentCode = p_StudentCode;
+    -- Truy xuất điểm theo môn học, gồm các thành phần và GPA từng môn
+    SELECT 
+        s.SubjectName,
+        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
+        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
+        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
+        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
+    FROM Grades g
+    JOIN Subjects s ON g.SubjectID = s.SubjectID
+    WHERE g.StudentID = v_StudentID
+    GROUP BY s.SubjectName;
+    -- Trả về GPA chung của học sinh
+    SELECT 
+        ROUND(SUM(g.Score * g.Percentage) / COUNT(DISTINCT g.SubjectID), 2) AS GPA_Total
+    FROM Grades g
+    WHERE g.StudentID = v_StudentID;
+END//
 DELIMITER ;
 
 insert into Teachers (TeacherName, Subject, Email) values ('Jeffy Ortes', 'Physical Education', 'jortes0@hibu.com');
@@ -407,31 +450,11 @@ insert into Teachers (TeacherName, Subject, Email) values ('Hervey Tunnow', 'Phy
 
 
 INSERT INTO Subjects (SubjectName) VALUES
-('Math'),
-('Science'),
-('History'),
-('English'),
-('Art'),
-('Music'),
-('Physical Education'),
-('Computer Science'),
-('Foreign Language'),
-('Health');
+('Math'),('Science'),('History'),('English'),('Art'),('Music'),('Physical Education'),('Computer Science'),('Foreign Language'),('Health');
 
 
 INSERT INTO Classes (ClassName, TeacherID) VALUES
-('10A1', 5),
-('11A1', 9),
-('12A1', 11),
-('10A2', 20),
-('11A2', 1),
-('12A2', 10),
-('10A3', 2),
-('11A3', 19),
-('12A3', 18),
-('10A4', 7),
-('11A4', 12),
-('12A4', 15);
+('10A1', 5),('11A1', 9),('12A1', 11),('11A2', 1),('10A3', 2),('12A3', 18),('11A4', 12),('12A4', 15);
 
 
 INSERT INTO Students (StudentName, BirthDate, ClassID, Address) VALUES
@@ -580,119 +603,5 @@ INSERT INTO Teacher_Class_Subject (TeacherID, ClassID, SubjectID) VALUES
 (20, 10, 10),
 (21, 12, 1);
 
-DELIMITER //
-
-DELIMITER //
-
-CREATE PROCEDURE GetSubjectsAndTeachersFromCode(IN inputStudentCode VARCHAR(20))
-BEGIN
-    DECLARE sid INT;
-
-    -- Lấy StudentID từ StudentCode
-    SELECT StudentID INTO sid
-    FROM Students
-    WHERE StudentCode = inputStudentCode;
-
-    -- Truy xuất môn học và giáo viên từ StudentID
-    SELECT 
-        s.SubjectName,
-        t.TeacherName
-    FROM Students st
-    JOIN Classes c ON st.ClassID = c.ClassID
-    JOIN Teacher_Class_Subject tcs ON c.ClassID = tcs.ClassID
-    JOIN Teachers t ON tcs.TeacherID = t.TeacherID
-    JOIN Subjects s ON tcs.SubjectID = s.SubjectID
-    WHERE st.StudentID = sid;
-END//
-
-DELIMITER ;
-
-
 CALL GetSubjectsAndTeachersFromCode('HS25-0005');
-
--- select * from Students;
-
--- DELIMITER //
-
--- CREATE PROCEDURE GetSubjectsAndTeachersByStudentID(IN inputStudentID INT)
--- BEGIN
---     SELECT 
---         s.SubjectName,
---         t.TeacherName
---     FROM Students AS st
---     JOIN Classes AS c ON st.ClassID = c.ClassID
---     JOIN Teacher_Class_Subject AS tcs ON c.ClassID = tcs.ClassID
---     JOIN Teachers AS t ON tcs.TeacherID = t.TeacherID
---     JOIN Subjects AS s ON tcs.SubjectID = s.SubjectID
---     WHERE st.StudentID = inputStudentID;
--- END//
-
--- DELIMITER ;
-
--- CALL GetSubjectsAndTeachersByStudentID(5);
-
--- select * from Students;
-
-
-
-DELIMITER //
-
-CREATE PROCEDURE GetStudentSubjectsGradesByCode(IN p_StudentCode VARCHAR(20))
-BEGIN
-    DECLARE v_StudentID INT;
-
-    -- Lấy StudentID từ mã sinh viên
-    SELECT StudentID INTO v_StudentID
-    FROM Students
-    WHERE StudentCode = p_StudentCode;
-
-    -- Truy xuất điểm theo môn học, gồm các thành phần và GPA từng môn
-    SELECT 
-        s.SubjectName,
-        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
-        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
-        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
-        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
-    FROM Grades g
-    JOIN Subjects s ON g.SubjectID = s.SubjectID
-    WHERE g.StudentID = v_StudentID
-    GROUP BY s.SubjectName;
-
-END//
-
-DELIMITER ;
-
-DELIMITER //
-
-CREATE PROCEDURE GetStudentGPAByCode(IN p_StudentCode VARCHAR(20))
-BEGIN
-    DECLARE v_StudentID INT;
-
-    -- Lấy StudentID từ mã sinh viên
-    SELECT StudentID INTO v_StudentID
-    FROM Students
-    WHERE StudentCode = p_StudentCode;
-
-    -- Truy xuất điểm theo môn học, gồm các thành phần và GPA từng môn
-    SELECT 
-        s.SubjectName,
-        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
-        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
-        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
-        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
-    FROM Grades g
-    JOIN Subjects s ON g.SubjectID = s.SubjectID
-    WHERE g.StudentID = v_StudentID
-    GROUP BY s.SubjectName;
-
-    -- Trả về GPA chung của học sinh
-    SELECT 
-        ROUND(SUM(g.Score * g.Percentage) / COUNT(DISTINCT g.SubjectID), 2) AS GPA_Total
-    FROM Grades g
-    WHERE g.StudentID = v_StudentID;
-END//
-
-DELIMITER ;
-
-
 CALL GetStudentGPAByCode('HS25-0005');
