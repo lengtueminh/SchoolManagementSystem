@@ -6,7 +6,7 @@ def connect_db():
         connection = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="tueminh25",    # CHANGE PASSWORD HERE 
+            password="thuhangtran128",    # CHANGE PASSWORD HERE 
             database="SchoolManagementSystem"
         )
         return connection
@@ -39,7 +39,11 @@ def get_teacher_details(teacher_code):
     if connection:
         try:
             cursor = connection.cursor()
-            query = "SELECT TeacherName, Email, TeacherCode, Subject FROM Teachers WHERE TeacherCode = %s"
+            query = """
+            SELECT T.TeacherName, T.Email, T.TeacherCode, S.SubjectName 
+            FROM Teachers  AS T LEFT JOIN Subjects AS S 
+                ON T.SubjectID = S.SubjectID
+            WHERE TeacherCode = %s"""
             cursor.execute(query, (teacher_code,))
             result = cursor.fetchone()
             if result:
@@ -65,14 +69,15 @@ def get_teacher_classes(teacher_code):
         try:
             cursor = connection.cursor()
             query = """
-                SELECT C.ClassName, T.Subject
-                FROM Classes AS C LEFT JOIN Teachers AS T
-                    ON C.TeacherID = T.TeacherID
+                SELECT C.ClassName
+                FROM Teacher_Class AS TC 
+                    LEFT JOIN Teachers AS T ON TC.TeacherID = T.TeacherID
+                    LEFT JOIN Classes AS C ON TC.ClassID = C.ClassID
                 WHERE T.TeacherCode = %s
             """
             cursor.execute(query, (teacher_code,))
             result = cursor.fetchall()
-            classes = [{"class_name": row[0], "subject_name": row[1]} for row in result]
+            classes = [{"class_name": row[0]} for row in result]
             return classes
         except Error as e:
             print(f"Error fetching teacher classes: {e}")
@@ -81,6 +86,77 @@ def get_teacher_classes(teacher_code):
             cursor.close()
             connection.close()
     return []
+
+## giữ cnay hoặc cái trên
+def get_classes_by_teacher(teacher_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = """
+                SELECT c.ClassID, c.ClassName
+                FROM Classes c
+                JOIN Teacher_Class tc ON c.ClassID = tc.ClassID
+                JOIN Teachers t ON tc.TeacherID = t.TeacherID
+                WHERE t.TeacherCode = %s
+            """
+            cursor.execute(query, (teacher_code,))
+            return cursor.fetchall()  # [(ClassID, ClassName), ...]
+        except Error as e:
+            print(f"Error fetching classes: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def get_students_in_class(class_id):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = """
+                SELECT s.StudentID, s.StudentCode, s.StudentName
+                FROM Students s
+                WHERE s.ClassID = %s
+            """
+            cursor.execute(query, (class_id,))
+            return cursor.fetchall()  # [(StudentID, StudentCode, StudentName), ...]
+        except Error as e:
+            print(f"Error fetching students: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def get_student_grade(student_code, subject_id):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = """
+                SELECT g.Score
+                FROM Grades g
+                JOIN Subjects s ON g.SubjectID = s.SubjectID
+                WHERE g.StudentID = (SELECT StudentID FROM Students WHERE StudentCode = %s) 
+                AND g.SubjectID = %s
+            """
+            cursor.execute(query, (student_code, subject_id))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return None
+        except Error as e:
+            print(f"Error fetching grade: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+#########################
 
 def get_student_name(student_code):
     connection = connect_db()
@@ -225,45 +301,17 @@ def update_teacher_details(teacher_code, new_name, new_email):
             connection.close()
     return False
 
-def submit_grade_to_db(student_code, teacher_code, grade, percentage):
+def submit_grade_to_db(teacher_code, student_code, grade, percentage):
     connection = connect_db()
     if connection:
         try:
             cursor = connection.cursor()
 
-            # Lấy TeacherID từ TeacherCode
-            cursor.execute("SELECT TeacherID FROM Teachers WHERE TeacherCode = %s", (teacher_code,))
-            teacher_result = cursor.fetchone()
-            if not teacher_result:
-                return False
-            teacher_id = teacher_result[0]
-
-            # lấy studentid từ student code
-            cursor.execute("SELECT StudentID FROM Students WHERE StudentCode = %s", (student_code,))
-            student_result = cursor.fetchone()
-            if not student_result:
-                return False
-            student_id = student_result[0]
-
-            # Lấy SubjectID mà giáo viên đang dạy
-            cursor.execute("SELECT SubjectID FROM Classes WHERE TeacherID = %s LIMIT 1", (teacher_id,))
-            subject_result = cursor.fetchone()
-            if not subject_result:
-                return False
-            subject_id = subject_result[0]
-
-            # Cập nhật hoặc chèn điểm
-            cursor.execute("SELECT * FROM Grades WHERE StudentID = %s AND SubjectID = %s", (student_id, subject_id))
-            if cursor.fetchone():
-                cursor.execute("UPDATE Grades SET Grade = %s WHERE StudentID = %s AND SubjectID = %s", (grade, student_id, subject_id))
-            else:
-                cursor.execute("INSERT INTO Grades (StudentID, SubjectID, Grade) VALUES (%s, %s, %s)", (student_id, subject_id, grade))
-
+            cursor.callproc("AddGradeByTeacherCode", (teacher_code, student_code, percentage, grade))
             connection.commit()
             return True
-
         except Error as e:
-            print(f"Error: {e}")
+            print(f"Error submitting grade: {e}")
             return False
         finally:
             cursor.close()
