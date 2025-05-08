@@ -3,14 +3,14 @@ CREATE DATABASE SchoolManagementSystem;
 USE SchoolManagementSystem;
 
 -- Các bảng đã có:
--- - Teachers: TeacherID, TeacherCode, TeacherName, Subject, Email
+-- - Subjects: SubjectID, SubjectName
+-- - Teachers: TeacherID, TeacherCode, TeacherName, SubjectID, Email
 -- - Students: StudentID, StudentCode, StudentName, BirthDate, ClassID, Address
 -- - Admins : AdminID, AdminName, Email, AdminCode
 -- - Users: UserID, UserName, Password, UserType, TeacherID/StudentID
--- - Subjects: SubjectID, SubjectName
--- - Classes: ClassID, ClassName, TeacherID 
+-- - Classes: ClassID, ClassName 
 -- - Grades: GradeID, SubjectID, StudentID, Score 
--- - Teacher_Class_Subject
+-- - Teacher_Class: ID, TeacherID, ClassID
 
 -- Các Stored Procedures đã có:
 -- - Add grade with Teacher check (giáo viên chỉ thêm được điểm lớp mình dạy) --> CẦN SỬA: Không cần phân quyền 
@@ -29,12 +29,18 @@ USE SchoolManagementSystem;
 -- - Truy xuất các môn học và giáo viên phụ trách theo StudentID 
 -- - TỰ động add user sau khi add gv hoặc hs 
 
+CREATE TABLE Subjects (
+    SubjectID INT AUTO_INCREMENT PRIMARY KEY,
+    SubjectName VARCHAR(100)
+);
+
 CREATE TABLE Teachers (
     TeacherID INT AUTO_INCREMENT PRIMARY KEY,
     TeacherCode VARCHAR(20) UNIQUE,
     TeacherName VARCHAR(100),
-    Subject VARCHAR(100),
-    Email VARCHAR(100)
+    SubjectID INT,
+    Email VARCHAR(100),
+    FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
 );
 
 CREATE TABLE Admins (
@@ -44,18 +50,10 @@ CREATE TABLE Admins (
     AdminCode VARCHAR(20) UNIQUE
 );
 
-CREATE TABLE Subjects (
-    SubjectID INT AUTO_INCREMENT PRIMARY KEY,
-    SubjectName VARCHAR(100)
-);
-
 CREATE TABLE Classes (
     ClassID INT AUTO_INCREMENT PRIMARY KEY,
-    ClassName VARCHAR(50),
-    TeacherID INT,
-    FOREIGN KEY (TeacherID) REFERENCES Teachers(TeacherID)
+    ClassName VARCHAR(50)
 );
-
 
 CREATE TABLE Students (
     StudentID INT AUTO_INCREMENT PRIMARY KEY,
@@ -90,16 +88,13 @@ CREATE TABLE Grades (
     FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
 );
 
-CREATE TABLE Teacher_Class_Subject (
+CREATE TABLE Teacher_Class (
     ID INT AUTO_INCREMENT PRIMARY KEY,
     TeacherID INT,
     ClassID INT,
-    SubjectID INT,
     FOREIGN KEY (TeacherID) REFERENCES Teachers(TeacherID),
-    FOREIGN KEY (ClassID) REFERENCES Classes(ClassID),
-    FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
+    FOREIGN KEY (ClassID) REFERENCES Classes(ClassID)
 );
-
 
 -- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
 DELIMITER //
@@ -114,7 +109,6 @@ BEGIN
     SET NEW.StudentCode = new_code;
 END//
 DELIMITER ;
-
 
 -- Trigger: Tự động tạo mã giáo viên dạng "GV24-0001" 
 DELIMITER //
@@ -166,7 +160,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- Add Grade with Teacher Check --> CẦN SỬA: Không cần phân quyền 
+-- Add Grade with Teacher Check 
 DELIMITER //
 CREATE PROCEDURE AddGrade(
     IN p_TeacherID INT,
@@ -187,8 +181,9 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unauthorized: Teacher does not teach this student.';
     END IF;
 END //
+DELIMITER ;
 
--- Update Grade with Teacher Check --> CẦN SỬA: Không cần phân quyền 
+-- Update Grade with Teacher Check 
 DELIMITER //
 CREATE PROCEDURE UpdateGrade(
     IN p_TeacherID INT,
@@ -261,7 +256,7 @@ DELIMITER ;
 -- DELIMITER ;
 
 
--- Admin Add Student --> SỬA LẠI: KHÔNG CẦN CHECK QUYỀN 
+-- Admin Add Student 
 DELIMITER //
 CREATE PROCEDURE AdminAddStudent(
     IN p_AdminID INT,
@@ -280,7 +275,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- Admin Update Student --> SỬA LẠI: KHÔNG CẦN CHECK QUYỀN 
+-- Admin Update Student 
 DELIMITER //
 CREATE PROCEDURE AdminUpdateStudent(
     IN p_AdminID INT,
@@ -318,7 +313,6 @@ BEGIN
     END IF;
 END //
 DELIMITER ;
-
 
 -- CHECK THIS
 -- Admin change user's password / users change their password.
@@ -426,124 +420,86 @@ BEGIN
 END//
 DELIMITER ;
 
-insert into Teachers (TeacherName, Subject, Email) values ('Jeffy Ortes', 'Physical Education', 'jortes0@hibu.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Marianne Teasdale', 'Physical Education', 'mteasdale1@census.gov');
-insert into Teachers (TeacherName, Subject, Email) values ('Chanda Strangwood', 'Math', 'cstrangwood2@skyrock.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Waneta Clemence', 'Foreign Language', 'wclemence3@disqus.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Leo Jenkin', 'Art', 'ljenkin4@networkadvertising.org');
-insert into Teachers (TeacherName, Subject, Email) values ('Munroe Kment', 'Foreign Language', 'mkment5@hugedomains.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Sibilla Kybird', 'Physical Education', 'skybird6@flavors.me');
-insert into Teachers (TeacherName, Subject, Email) values ('Kristal Yurmanovev', 'Computer Science', 'kyurmanovev7@who.int');
-insert into Teachers (TeacherName, Subject, Email) values ('Madelina Bunney', 'Math', 'mbunney8@usatoday.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Charlean Corsor', 'Art', 'ccorsor9@soundcloud.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Moise Wilsone', 'Science', 'mwilsonea@unesco.org');
-insert into Teachers (TeacherName, Subject, Email) values ('Adela Robertsson', 'Math', 'arobertssonb@buzzfeed.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Donnie Mockford', 'Art', 'dmockfordc@reverbnation.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Nana Mawdsley', 'Foreign Language', 'nmawdsleyd@umich.edu');
-insert into Teachers (TeacherName, Subject, Email) values ('Tamara Halfacre', 'Science', 'thalfacree@privacy.gov.au');
-insert into Teachers (TeacherName, Subject, Email) values ('Jimmy Petrelli', 'Music', 'jpetrellif@lycos.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Nickie Waby', 'Computer Science', 'nwabyg@ycombinator.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Dallon Piddletown', 'Science', 'dpiddletownh@sbwire.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Suki Manicom', 'Science', 'smanicomi@friendfeed.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Issie Skirrow', 'Art', 'iskirrowj@blinklist.com');
-insert into Teachers (TeacherName, Subject, Email) values ('Hervey Tunnow', 'Physical Education', 'htunnowk@buzzfeed.com');
-
-
 INSERT INTO Subjects (SubjectName) VALUES
-('Math'),('Science'),('History'),('English'),('Art'),('Music'),('Physical Education'),('Computer Science'),('Foreign Language'),('Health');
+('Math'),('Science'),('History'),('English'),('Art'),('Music'),('Physical Education'),('Computer Science'),('Foreign Language');
 
+INSERT INTO Teachers (TeacherName, SubjectID, Email) VALUES 
+('Jeffy Ortes', 1, 'jortes0@hibu.com'),
+('Marianne Teasdale', 2, 'mteasdale1@census.gov'),
+('Chanda Strangwood', 3, 'cstrangwood2@skyrock.com'),
+('Waneta Clemence', 4, 'wclemence3@disqus.com'),
+('Leo Jenkin', 5, 'ljenkin4@networkadvertising.org'),
+('Munroe Kment', 6, 'mkment5@hugedomains.com'),
+('Sibilla Kybird', 7, 'skybird6@flavors.me'),
+('Kristal Yurmanovev', 8, 'kyurmanovev7@who.int'),
+('Madelina Bunney', 9, 'mbunney8@usatoday.com'),
+('Charlean Corsor', 1, 'ccorsor9@soundcloud.com'),
+('Moise Wilsone', 2, 'mwilsonea@unesco.org'),
+('Adela Robertsson', 3, 'arobertssonb@buzzfeed.com'),
+('Donnie Mockford', 4, 'dmockfordc@reverbnation.com'),
+('Nana Mawdsley', 5, 'nmawdsleyd@umich.edu'),
+('Tamara Halfacre', 6, 'thalfacree@privacy.gov.au'),
+('Jimmy Petrelli', 7, 'jpetrellif@lycos.com'),
+('Nickie Waby', 8, 'nwabyg@ycombinator.com'),
+('Dallon Piddletown', 9, 'dpiddletownh@sbwire.com'),
+('Suki Manicom', 1, 'smanicomi@friendfeed.com'),
+('Issie Skirrow', 2, 'iskirrowj@blinklist.com'),
+('Hervey Tunnow', 3, 'htunnowk@buzzfeed.com');
 
-INSERT INTO Classes (ClassName, TeacherID) VALUES
-('10A1', 5),('11A1', 9),('12A1', 11),('11A2', 1),('10A3', 2),('12A3', 18),('11A4', 12),('12A4', 15);
+INSERT INTO Classes (ClassName) VALUES
+('10A1'),('10A2'),('11A1'),('11A2'),('11A3'),('12A1'),('12A2'),('12A3');
 
+INSERT INTO Teacher_Class (TeacherID, ClassID) VALUES
+(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1),
+(10, 2), (11,2), (12, 2), (13, 2), (14, 2), (15, 2), (16, 2), (17, 2), (18,2),
+(19, 3), (20, 3), (21, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3),
+(10, 4), (11, 4), (12, 4), (13, 4), (14, 4), (15, 4), (16, 4), (17, 4), (18, 4),
+(10, 5), (2, 5), (12, 5), (4, 5), (14, 5), (6, 5), (16, 5), (8, 5), (18, 5),
+(1, 6), (11, 6), (3, 6), (13, 6), (5, 6), (15, 6), (7, 6), (17, 6), (9, 6),
+(1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (15, 7), (16, 7), (17, 7), (18,7),
+(10, 8), (11, 8), (12, 8), (13, 8), (14, 8), (6, 8), (7, 8), (8, 8), (9, 8);
 
 INSERT INTO Students (StudentName, BirthDate, ClassID, Address) VALUES
-('Nguyen Tuan', '2007-03-05', 1, 'Hanoi'),
-('Nguyen Minh', '2007-04-15', 1, 'Hanoi'),
-('Tran Khoa', '2007-02-20', 1, 'Hanoi'),
-('Pham Lan', '2007-06-11', 1, 'Hanoi'),
-
-('Tran Anh', '2007-07-11', 2, 'Hanoi'),
-('Le Giang', '2007-08-08', 2, 'Hung Yen'),
-('Vu Anh', '2007-12-12', 2, 'Hung Yen'),
-('Bui Quynh', '2007-03-03', 2, 'Ha Nam'),
-
-('Le Huyen', '2007-05-22', 3, 'Hai Phong'),
-('Nguyen Ha', '2007-06-30', 3, 'Hai Duong'),
-('Phan Linh', '2007-09-09', 3, 'Hai Phong'),
-('Doan Phuong', '2007-04-04', 3, 'Nam Dinh'),
-
-('Pham Nam', '2007-10-01', 4, 'Da Nang'),
-('Doan Nam', '2007-05-18', 4, 'Hue'),
-('Tran Hieu', '2007-11-01', 4, 'Da Nang'),
-('Nguyen Hanh', '2007-08-02', 4, 'Da Nang'),
-
-('Do Linh', '2007-01-30', 5, 'HCM City'),
-('Ngo Hanh', '2007-03-03', 5, 'Can Tho'),
-('Pham Binh', '2007-07-21', 5, 'HCM City'),
-('Bui Ngan', '2007-09-19', 5, 'Vung Tau'),
-
-('Hoàng Thành Đạt', '2006-04-03', 12, 'Hanoi'),
-('Bùi Minh Đạt', '2007-03-29', 6, 'Hanoi'),
-('Ngô Huy Đạt', '2006-10-23', 9, 'Hanoi'),
-('Nguyễn Ngọc Đạt', '2008-09-24', 7, 'Hanoi'),
-('Ngô Anh Đạt', '2008-01-04', 12, 'Hanoi'),
-('Đỗ Văn Hùng', '2007-05-14', 6, 'Hanoi'),
-('Đỗ Tuấn Hùng', '2006-04-03', 8, 'Hanoi'),
-('Phạm Hữu Hùng', '2006-08-10', 5, 'Hanoi'),
-('Nguyễn Quốc Hùng', '2006-12-26', 10, 'Hanoi'),
-('Dương Chí Hùng', '2006-04-08', 3, 'Hanoi'),
-('Hồ Minh Khang', '2008-10-29', 8, 'Hanoi'),
-('Trần Tuấn Khang', '2006-02-02', 5, 'Hanoi'),
-('Phạm Đức Khang', '2007-06-22', 12, 'Hanoi'),
-('Dương Hải Khang', '2008-06-05', 4, 'Hanoi'),
-('Bùi Trí Khang', '2007-03-22', 9, 'Hanoi'),
-('Trần Hoàng Sơn', '2006-11-15', 12, 'Hanoi'),
-('Dương Hữu Sơn', '2006-10-14', 7, 'Hanoi'),
-('Trần Minh Sơn', '2006-09-10', 12, 'Hanoi'),
-('Dương Tuấn Sơn', '2007-09-06', 7, 'Hanoi'),
-('Nguyễn Đức Sơn', '2006-02-12', 4, 'Hanoi'),
-
-('Ngô Thành Linh', '2007-09-10', 10, 'Hanoi'),
-('Đỗ Huy Linh', '2008-10-05', 10, 'Hanoi'),
-('Vũ Văn Linh', '2008-10-16', 6, 'Hanoi'),
-('Phan Tuấn Linh', '2006-11-02', 6, 'Hanoi'),
-('Vũ Hoàng Linh', '2007-06-26', 6, 'Hanoi'),
-('Bùi Quang Linh', '2008-02-14', 9, 'Hanoi'),
-('Lê Hải Lâm', '2008-10-21', 8, 'Hanoi'),
-('Bùi Văn Lâm', '2007-01-01', 11, 'Hanoi'),
-('Phạm Huy Lâm', '2008-07-04', 9, 'Hanoi'),
-('Hồ Bảo Lâm', '2006-07-19', 6, 'Hanoi'),
-('Ngô Thanh Lâm', '2006-08-18', 5, 'Hanoi'),
-('Bùi Minh Lâm', '2008-02-21', 8, 'Hanoi'),
-('Hoàng Bảo Nam', '2006-08-25', 10, 'Hanoi'),
-('Lê Huy Nam', '2006-05-11', 11, 'Hanoi'),
-('Đỗ Hải Nam', '2006-04-11', 1, 'Hanoi'),
-('Hồ Thanh Nam', '2007-11-27', 7, 'Hanoi'),
-('Bùi Bá Nam', '2007-05-08', 8, 'Hanoi'),
-('Vũ Quốc Nam', '2006-09-03', 7, 'Hanoi'),
-('Phan Đức Phúc', '2007-03-07', 11, 'Hanoi'),
-('Lê Huy Phúc', '2008-04-01', 5, 'Hanoi'),
-('Trần Tuấn Phúc', '2006-06-13', 10, 'Hanoi'),
-('Đặng Bảo Phúc', '2007-12-25', 12, 'Hanoi'),
-('Lê Mạnh Phúc', '2008-09-24', 6, 'Hanoi'),
-('Vũ Chấn Phong', '2006-08-24', 9, 'Hanoi'),
-('Đỗ Hải Phong', '2008-05-23', 8, 'Hanoi'),
-('Ngô Mạnh Phong', '2006-12-08', 12, 'Hanoi'),
-('Hồ Quốc Phong', '2008-08-02', 10, 'Hanoi'),
-('Nguyễn Thanh Nguyên', '2008-04-06', 11, 'Hanoi'),
-('Hồ Trọng Nguyên', '2008-02-08', 9, 'Hanoi'),
-('Đỗ Gia Nguyên', '2008-03-25', 8, 'Hanoi'),
-('Ngô Trí Nguyên', '2008-11-24', 7, 'Hanoi'),
-('Đặng Mạnh Nguyên', '2008-06-26', 12, 'Hanoi'),
-('Vũ Bảo Long', '2006-09-14', 7, 'Hanoi'),
-('Phan Quốc Long', '2007-09-02', 11, 'Hanoi'),
-('Đỗ Huy Long', '2007-10-05', 6, 'Hanoi'),
-('Vũ Gia Long', '2008-04-22', 9, 'Hanoi'),
-('Vũ Thành Long', '2007-08-09', 6, 'Hanoi'),
-('Đỗ Bá Long', '2008-12-04', 10, 'Hanoi');
-
-
+('Tabitha Schoolfield', '2001-02-10', '1', '7873 Robbs Road, Columbus, Georgia, United States, 31914'),
+('Staci Gilchrist', '2001-03-25', '1', '2096 Brookhaven Place, Irvine, California, United States, 92710'),
+('Vivian Enderby', '2000-08-12', '1', '7772 Clifford Court, Henderson, Nevada, United States, 89012'),
+('Udall Gloucester', '2001-04-09', '1', '14519 Netherclift Terrace, Knoxville, Tennessee, United States, 37931'),
+('Farris Scrine', '2000-11-30', '1', '9283 Laufersky Lane, Trenton, New Jersey, United States, 08638'),
+('Jarid Leander', '2001-04-26', '2', '13282 Kurtz Lane, Norfolk, Virginia, United States, 23509'),
+('Phyllis Leeming', '2001-01-31', '2', '11675 August Loop, Philadelphia, Pennsylvania, United States, 19184'),
+('Luisa Fliege', '2000-12-23', '2', '12126 Keeley Court, San Jose, California, United States, 95173'),
+('Onfre Bugby', '2000-06-02', '2', '1251 Brittany Terrace, Jacksonville, Florida, United States, 32204'),
+('Corene Holleran', '2001-05-02', '2', '3797 Began Place, Evansville, Indiana, United States, 47725'),
+('Edi Calderbank', '2001-05-05', '3', '6776 Tanner Drive, San Jose, California, United States, 95160'),
+('Prentice Slisby', '2001-02-23', '3', '2960 Dalzell Court, Sacramento, California, United States, 95813'),
+('Janeva Abry', '2000-08-16', '3', '4905 Hortensia Place, Bradenton, Florida, United States, 34210'),
+('Lindsay Hedley', '2001-02-03', '3', '5941 Quary Place, Anchorage, Alaska, United States, 99522'),
+('Selle Walling', '2001-03-11', '3', '13213 Westminster Court, Sacramento, California, United States, 94237'),
+('Ruperto Cavey', '2001-03-21', '4', '13765 Halyard Court, Santa Monica, California, United States, 90405'),
+('Brew Dibnah', '2000-08-30', '4', '4601 Renwick Way, Wilmington, Delaware, United States, 19897'),
+('Davon Peepall', '2000-05-21', '4', '13681 Mazzio Lane, Washington, District of Columbia, United States, 20073'),
+('Beulah Dronsfield', '2000-08-12', '4', '12502 Brunson Way, Shawnee Mission, Kansas, United States, 66210'),
+('Augustus Tomkins', '2001-02-16', '4', '1309 Tinsley Terrace, North Little Rock, Arkansas, United States, 72118'),
+('Corbin Clyant', '2000-07-03', '5', '5332 Gallinule Court, Des Moines, Iowa, United States, 50335'),
+('Whit Trudgian', '2001-01-22', '5', '3188 Morley Avenue, Lubbock, Texas, United States, 79410'),
+('Michel Maase', '2000-09-30', '5', '10593 Almanza Drive, Tampa, Florida, United States, 33673'),
+('Moria Ivasechko', '2001-03-19', '5', '4839 Day Lily Run, Hollywood, Florida, United States, 33023'),
+('Pavla Kasbye', '2000-07-11', '5', '6265 Pennecamp Drive, Staten Island, New York, United States, 10305'),
+('Holt Hoys', '2000-07-05', '6', '7807 Parrot Place, Hartford, Connecticut, United States, 06183'),
+('Virge Braid', '2000-07-12', '6', '7318 Halstead Terrace, Des Moines, Iowa, United States, 50936'),
+('Janeta Pointing', '2000-08-15', '6', '4494 Baez Way, Biloxi, Mississippi, United States, 39534'),
+('Hodge Lowy', '2000-10-04', '6', '3259 Flynn Circle, Cleveland, Ohio, United States, 44118'),
+('Aldus Elbourne', '2001-04-15', '6', '10168 Pensacola Place, New York City, New York, United States, 10014'),
+('Shanda Kindon', '2000-06-08', '7', '14739 Jonesville Terrace, Wilmington, Delaware, United States, 19886'),
+('Anetta Fricker', '2001-02-19', '7', '3161 Mccook Street, Santa Barbara, California, United States, 93111'),
+('Michele McAster', '2000-09-11', '7', '5061 Walmer Lane, Charleston, South Carolina, United States, 29424'),
+('Steffie Edmondson', '2000-08-31', '7', '14446 Orangeburg Terrace, Warren, Michigan, United States, 48092'),
+('Ezra Arnoud', '2000-07-18', '7', '3390 Bowles Place, San Diego, California, United States, 92153'),
+('Kilian Paulo', '2000-07-10', '8', '704 Fawnridge Court, Oklahoma City, Oklahoma, United States, 73114'),
+('Hayden Galero', '2000-08-01', '8', '7181 Lewisfield Terrace, Boston, Massachusetts, United States, 02298'),
+('Sisile Ormston', '2000-08-31', '8', '5673 Palma Drive, Washington, District of Columbia, United States, 20215'),
+('Sharla Stone', '2001-02-12', '8', '12132 Callaway Drive, Houston, Texas, United States, 77288'),
+('Kakalina Huffy', '2000-12-03', '8', '13942 Heath Springs Drive, Jackson, Mississippi, United States, 39210');
 
 INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
 (1, 1, 0.10, 9.0), (1, 1, 0.40, 7.5), (1, 1, 0.50, 8.0), 
@@ -564,44 +520,102 @@ INSERT INTO Grades (StudentID, SubjectID, Percentage, Score) VALUES
 
 (5, 1, 0.10, 10.0), (5, 1, 0.40, 9.0), (5, 1, 0.50, 8.5), 
 (5, 2, 0.10, 10.0), (5, 2, 0.40, 7.5), (5, 2, 0.50, 9.0), 
-(5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5);
+(5, 3, 0.10, 10.0), (5, 3, 0.40, 8.0), (5, 3, 0.50, 8.5),
 
-INSERT INTO Teacher_Class_Subject (TeacherID, ClassID, SubjectID) VALUES
--- Giáo viên Toán
-(1, 6, 1), (1, 2, 1), (1, 8, 1),
--- Giáo viên Ngữ Văn
-(2, 6, 2), (2, 9, 2),
--- Giáo viên Tiếng Anh
-(3, 2, 3), (3, 11, 3),
--- Giáo viên Lịch sử
-(4, 8, 4), (4, 12, 4),
--- Giáo viên Địa lý
-(5, 6, 5), (5, 7, 5),
--- Giáo viên Thể dục
-(6, 10, 7), (6, 11, 7),
--- Giáo viên Tin học
-(7, 9, 8), (7, 12, 8),
--- Giáo viên Âm nhạc
-(8, 7, 6), (8, 8, 6),
--- Giáo viên Sinh học
-(9, 10, 9), (9, 11, 9),
--- Giáo viên Ngoại ngữ 2
-(10, 6, 10), (10, 12, 10),
+(6, 1, 0.10, 9.0), (6, 1, 0.40, 7.0), (6, 1, 0.50, 7.5), 
+(6, 2, 0.10, 8.0), (6, 2, 0.40, 5.5), (6, 2, 0.50, 8.0), 
+(6, 3, 0.10, 9.0), (6, 3, 0.40, 6.0), (6, 3, 0.50, 6.5),
 
--- Một số giáo viên phụ trách nhiều lớp cùng môn
-(11, 9, 1), (11, 10, 1),
-(12, 11, 2), (12, 12, 2),
-(13, 6, 3), (13, 8, 3),
-(14, 7, 4), (14, 9, 4),
-(15, 10, 5), (15, 12, 5),
+(7, 1, 0.10, 9.0), (7, 1, 0.40, 6.0), (7, 1, 0.50, 7.5), 
+(7, 2, 0.10, 9.0), (7, 2, 0.40, 7.5), (7, 2, 0.50, 8.0), 
+(7, 3, 0.10, 9.0), (7, 3, 0.40, 8.0), (7, 3, 0.50, 9.5),
 
--- Một số giáo viên kiêm nhiệm hoặc thay thế
-(16, 11, 6),
-(17, 7, 7),
-(18, 8, 8),
-(19, 9, 9),
-(20, 10, 10),
-(21, 12, 1);
+(8, 1, 0.10, 9.0), (8, 1, 0.40, 7.0), (8, 1, 0.50, 6.5), 
+(8, 2, 0.10, 9.0), (8, 2, 0.40, 7.0), (8, 2, 0.50, 9.0), 
+(8, 3, 0.10, 10.0), (8, 3, 0.40, 8.0), (8, 3, 0.50, 6.5),
 
-CALL GetSubjectsAndTeachersFromCode('HS25-0005');
-CALL GetStudentGPAByCode('HS25-0005');
+(9, 1, 0.10, 10.0), (9, 1, 0.40, 9.0), (9, 1, 0.50, 8.5), 
+(9, 2, 0.10, 9.0), (9, 2, 0.40, 8.0), (9, 2, 0.50, 9.0), 
+(9, 3, 0.10, 10.0), (9, 3, 0.40, 8.0), (9, 3, 0.50, 9.5),
+
+(10, 1, 0.10, 9.0), (10, 1, 0.40, 7.0), (10, 1, 0.50, 8.0), 
+(10, 2, 0.10, 10.0), (10, 2, 0.40, 6.0), (10, 2, 0.50, 7.5), 
+(10, 3, 0.10, 10.0), (10, 3, 0.40, 8.5), (10, 3, 0.50, 9.0),
+
+(11, 1, 0.10, 10.0), (11, 1, 0.40, 8.5), (11, 1, 0.50, 8.0), 
+(11, 2, 0.10, 10.0), (11, 2, 0.40, 9.0), (11, 2, 0.50, 8.5), 
+(11, 3, 0.10, 10.0), (11, 3, 0.40, 8.5), (11, 3, 0.50, 9.5),
+
+(12, 1, 0.10, 8.0), (12, 1, 0.40, 5.0), (12, 1, 0.50, 7.0), 
+(12, 2, 0.10, 9.0), (12, 2, 0.40, 6.5), (12, 2, 0.50, 6.5), 
+(12, 3, 0.10, 9.0), (12, 3, 0.40, 5.0), (12, 3, 0.50, 7.0),
+
+(13, 1, 0.10, 9.0), (13, 1, 0.40, 7.5), (13, 1, 0.50, 7.5), 
+(13, 2, 0.10, 9.0), (13, 2, 0.40, 6.0), (13, 2, 0.50, 7.0), 
+(13, 3, 0.10, 8.0), (13, 3, 0.40, 6.5), (13, 3, 0.50, 4.5),
+
+(16, 1, 0.10, 10.0), (16, 1, 0.40, 9.0), (16, 1, 0.50, 8.5), 
+(16, 2, 0.10, 10.0), (16, 2, 0.40, 9.5), (16, 2, 0.50, 8.0), 
+(16, 3, 0.10, 9.0), (16, 3, 0.40, 8.5), (16, 3, 0.50, 8.5),
+
+(17, 1, 0.10, 10.0), (17, 1, 0.40, 6.0), (17, 1, 0.50, 7.5), 
+(17, 2, 0.10, 9.0), (17, 2, 0.40, 8.5), (17, 2, 0.50, 8.0), 
+(17, 3, 0.10, 9.0), (17, 3, 0.40, 8.0), (17, 3, 0.50, 7.5),
+
+(18, 1, 0.10, 10.0), (18, 1, 0.40, 8.0), (18, 1, 0.50, 6.5), 
+(18, 2, 0.10, 9.0), (18, 2, 0.40, 8.0), (18, 2, 0.50, 9.0), 
+(18, 3, 0.10, 10.0), (18, 3, 0.40, 6.0), (18, 3, 0.50, 6.5),
+
+(21, 1, 0.10, 8.0), (21, 1, 0.40, 6.0), (21, 1, 0.50, 7.0), 
+(21, 2, 0.10, 10.0), (21, 2, 0.40, 9.5), (21, 2, 0.50, 10.0), 
+(21, 3, 0.10, 9.0), (21, 3, 0.40, 7.0), (21, 3, 0.50, 8.0),
+
+(22, 1, 0.10, 7.0), (22, 1, 0.40, 6.0), (22, 1, 0.50, 5.0), 
+(22, 2, 0.10, 8.0), (22, 2, 0.40, 6.5), (22, 2, 0.50, 7.0), 
+(22, 3, 0.10, 9.0), (22, 3, 0.40, 8.0), (22, 3, 0.50, 8.0),
+
+(23, 1, 0.10, 9.0), (23, 1, 0.40, 8.0), (23, 1, 0.50, 6.5), 
+(23, 2, 0.10, 9.5), (23, 2, 0.40, 9.0), (23, 2, 0.50, 7.0), 
+(23, 3, 0.10, 10.0), (23, 3, 0.40, 9.5), (23, 3, 0.50, 7.5),
+
+(26, 1, 0.10, 9.0), (26, 1, 0.40, 7.0), (26, 1, 0.50, 6.5), 
+(26, 2, 0.10, 9.0), (26, 2, 0.40, 5.5), (26, 2, 0.50, 6.0), 
+(26, 3, 0.10, 8.0), (26, 3, 0.40, 6.5), (26, 3, 0.50, 4.5),
+
+(27, 1, 0.10, 9.0), (27, 1, 0.40, 8.0), (27, 1, 0.50, 8.5), 
+(27, 2, 0.10, 9.0), (27, 2, 0.40, 7.5), (27, 2, 0.50, 8.5), 
+(27, 3, 0.10, 10.0), (27, 3, 0.40, 7.0), (27, 3, 0.50, 9.5),
+
+(28, 1, 0.10, 10.0), (28, 1, 0.40, 9.0), (28, 1, 0.50, 7.5), 
+(28, 2, 0.10, 9.0), (28, 2, 0.40, 8.0), (28, 2, 0.50, 9.0), 
+(28, 3, 0.10, 10.0), (28, 3, 0.40, 7.0), (28, 3, 0.50, 8.5),
+
+(31, 1, 0.10, 9.0), (31, 1, 0.40, 7.5), (31, 1, 0.50, 8.5), 
+(31, 2, 0.10, 10.0), (31, 2, 0.40, 8.0), (31, 2, 0.50, 7.5), 
+(31, 3, 0.10, 9.0), (31, 3, 0.40, 8.5), (31, 3, 0.50, 9.5),
+
+(32, 1, 0.10, 9.5), (32, 1, 0.40, 9.0), (32, 1, 0.50, 9.0), 
+(32, 2, 0.10, 10.0), (32, 2, 0.40, 9.5), (32, 2, 0.50, 8.0), 
+(32, 3, 0.10, 9.0), (32, 3, 0.40, 9.0), (32, 3, 0.50, 10.0),
+
+(33, 1, 0.10, 9.0), (33, 1, 0.40, 4.5), (33, 1, 0.50, 6.5), 
+(33, 2, 0.10, 9.0), (33, 2, 0.40, 7.0), (33, 2, 0.50, 6.0), 
+(33, 3, 0.10, 10.0), (33, 3, 0.40, 8.5), (33, 3, 0.50, 5.5),
+
+(37, 1, 0.10, 10.0), (37, 1, 0.40, 6.0), (37, 1, 0.50, 7.5), 
+(37, 2, 0.10, 9.0), (37, 2, 0.40, 7.5), (37, 2, 0.50, 9.0), 
+(37, 3, 0.10, 9.0), (37, 3, 0.40, 8.0), (37, 3, 0.50, 7.5),
+
+(38, 1, 0.10, 9.0), (38, 1, 0.40, 7.0), (38, 1, 0.50, 9.5), 
+(38, 2, 0.10, 9.0), (38, 2, 0.40, 8.0), (38, 2, 0.50, 9.0), 
+(38, 3, 0.10, 10.0), (38, 3, 0.40, 8.0), (38, 3, 0.50, 8.5),
+
+(39, 1, 0.10, 10.0), (39, 1, 0.40, 9.0), (39, 1, 0.50, 9.5), 
+(39, 2, 0.10, 10.0), (39, 2, 0.40, 10.0), (39, 2, 0.50, 9.0), 
+(39, 3, 0.10, 10.0), (39, 3, 0.40, 8.5), (39, 3, 0.50, 9.5);
+
+INSERT INTO Admins (AdminName, Email) VALUES
+('Marget Evans', 'marget.evans@gmail.com'),
+('Rutter Benka', 'rutter.benka@yahoo.com'),
+('Rudie O'' Ronan', 'rudie.oronan@yahoo.com'),
+('Alia Steffan', 'alia.steffan@hotmail.fr');
