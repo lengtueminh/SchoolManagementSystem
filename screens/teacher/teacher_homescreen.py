@@ -80,7 +80,7 @@ class TeacherHomeScreen(MDScreen):
         teacher_id = app.username
         details = get_teacher_details(teacher_id)
 
-        content = MDBoxLayout(orientation="vertical", size_hint_y=None, height=200)
+        content = MDBoxLayout(orientation="vertical", size_hint_y=None, height=250)
         content.add_widget(MDLabel(text=f"Name: {details['teacher_name']} \n\nTeacher Code: {details['teacher_code']} \n\nEmail: {details['email']} \n\nSubject: {details['subject']}", halign="left"))
 
         self.dialog = MDDialog(title="Teacher Details", type="custom", content_cls=content, buttons=[
@@ -96,7 +96,7 @@ class TeacherHomeScreen(MDScreen):
         teacher_code = app.username
         teacher = get_teacher_details(teacher_code)
         if not teacher:
-            print("Không thể lấy thông tin sinh viên.")
+            print("Không thể lấy thông tin giáo viên.")
             return
 
         self.name_input = MDTextField(
@@ -142,22 +142,23 @@ class TeacherHomeScreen(MDScreen):
             toast("Failed to update!")
 
     def view_classes(self, instance):
-        app = MDApp.get_running_app()
-        teacher_code = app.username
-        teacher_classes = get_teacher_classes(teacher_code)
+        self.manager.current = "teacher_classes"
+        # app = MDApp.get_running_app()
+        # teacher_code = app.username
+        # teacher_classes = get_teacher_classes(teacher_code)
         
-        # Create a dialog to show classes
-        class_dialog_content = BoxLayout(orientation="vertical", size_hint_y=None, height=200)
-        for class_info in teacher_classes:
-            class_dialog_content.add_widget(MDLabel(text=f"Class: {class_info['class_name']} - {class_info['subject_name']}", halign="left"))
+        # # Create a dialog to show classes
+        # class_dialog_content = BoxLayout(orientation="vertical", size_hint_y=None, height=200)
+        # for class_info in teacher_classes:
+        #     class_dialog_content.add_widget(MDLabel(text=f"Class: {class_info['class_name']}", halign="left"))
         
-        self.dialog = MDDialog(
-            title="My Classes",
-            type="custom",
-            content_cls=class_dialog_content,
-            buttons=[MDRaisedButton(text="Close", on_release=self.close_dialog)]
-        )
-        self.dialog.open()
+        # self.dialog = MDDialog(
+        #     title="My Classes",
+        #     type="custom",
+        #     content_cls=class_dialog_content,
+        #     buttons=[MDRaisedButton(text="Close", on_release=self.close_dialog)]
+        # )
+        # self.dialog.open()
 
     def grade_submission(self, instance):
         content = MDBoxLayout(orientation="vertical", size_hint_y=None, height=400)
@@ -214,7 +215,7 @@ class TeacherHomeScreen(MDScreen):
             toast("Student code does not exist.")
             return
     
-        success = submit_grade_to_db(student_code, teacher_code, grade, percentage)
+        success = submit_grade_to_db(teacher_code, student_code, percentage, grade)
 
         if success:
             toast("Grade submitted successfully.")
