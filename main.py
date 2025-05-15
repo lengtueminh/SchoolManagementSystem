@@ -4,6 +4,7 @@ from screens.login_screen import LoginScreen
 from screens.teacher import TeacherHomeScreen, TeacherClassesScreen
 # from screens.admin_screen import AdminScreen
 from screens.student import StudentHomeScreen
+from screens.teacher.class_display import ClassDisplay
 
 class SchoolManagementApp(MDApp):
     def __init__(self, **kwargs):
@@ -20,6 +21,7 @@ class SchoolManagementApp(MDApp):
         sm.add_widget(TeacherHomeScreen(name="teacher_homescreen"))
         sm.add_widget(StudentHomeScreen(name="student_screen"))
         sm.add_widget(TeacherClassesScreen(name="teacher_classes"))
+        sm.add_widget(ClassDisplay(name="class_display"))
 
         return sm
 

@@ -14,8 +14,6 @@ from functools import partial
 from utils.db_utils import get_teacher_name, get_teacher_details, get_classes_by_teacher, get_students_in_class, get_student_grade
 from kivymd.uix.boxlayout import MDBoxLayout
 
-class StudentListContainer(MDBoxLayout):
-    pass
 
 class TeacherClassesScreen(MDScreen):
     def __init__(self, **kwargs):
@@ -57,23 +55,26 @@ class TeacherClassesScreen(MDScreen):
         self.add_widget(buttons_layout)
 
     def show_students(self, instance, class_id):
-        students = get_students_in_class(class_id)
+        app = MDApp.get_running_app()
+        class_students_screen = app.root.get_screen("class_display")
+        class_students_screen.class_id = class_id  # Truyền class_id vào màn hình
+        self.manager.current = "class_display"  
 
-        container = StudentListContainer(orientation='vertical', spacing=10, padding=10)
-        for student_id, student_code, student_name in students:
-            item = OneLineListItem(
-                text=student_name, 
-                on_release=partial(self.show_student_grade, student_code)
-            )
-            container.add_widget(item)
+        # container = StudentListContainer(orientation='vertical', spacing=10, padding=10)
+        # for student_id, student_code, student_name in students:
+        #     item = OneLineListItem(
+        #         text=student_name, 
+        #         on_release=partial(self.show_student_grade, student_code)
+        #     )
+        #     container.add_widget(item)
 
-        self.dialog = MDDialog(
-            title="Student List",
-            type="custom",
-            content_cls=container,
-            buttons=[MDRaisedButton(text="Close", on_release=self.close_dialog)]
-        )
-        self.dialog.open()
+        # self.dialog = MDDialog(
+        #     title="Student List",
+        #     type="custom",
+        #     content_cls=container,
+        #     buttons=[MDRaisedButton(text="Close", on_release=self.close_dialog)]
+        # )
+        # self.dialog.open()
 
         # student_list = MDBoxLayout(orientation='vertical', adaptive_height=True)
         # for student_id, student_code, student_name in students:
