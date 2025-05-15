@@ -5,7 +5,6 @@ from kivymd.app import MDApp
 from kivymd.uix.scrollview import ScrollView
 from kivymd.uix.boxlayout import BoxLayout, MDBoxLayout
 from kivymd.uix.textfield import MDTextField
-from kivymd.uix.card import MDCard
 from kivymd.uix.dialog import MDDialog
 from kivymd.toast import toast
 from utils.db_utils import check_student_exists, get_teacher_name, get_teacher_details, get_teacher_classes, update_teacher_details, submit_grade_to_db
@@ -16,7 +15,6 @@ class TeacherHomeScreen(MDScreen):
 
     def on_enter(self):
         self.clear_widgets() 
-
         app = MDApp.get_running_app()
         teacher_code = app.username
         teacher_name = get_teacher_name(teacher_code)
