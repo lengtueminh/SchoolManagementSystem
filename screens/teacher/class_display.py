@@ -7,7 +7,11 @@ from kivymd.uix.button import MDRaisedButton
 from kivymd.uix.list import OneLineListItem
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.menu import MDDropdownMenu
+from kivymd.uix.datatables import MDDataTable
+from kivymd.uix.textfield import MDTextField
+from kivy.metrics import dp
 from utils.db_utils import get_students_in_class_with_gpa, get_student_grade_details, get_subject_id_by_teacher_code, get_class_name_by_id
+from utils.db_utils import update_student_grade, get_student_id_by_code
 
 class ClassDisplay(MDScreen):
     def __init__(self, **kwargs):
@@ -32,7 +36,9 @@ class ClassDisplay(MDScreen):
             font_style="H5",
             size_hint=(1, None),
             height=50,
-            pos_hint={"center_x": 0.5, "top": 1}
+            pos_hint={"center_x": 0.5, "top": 0.95},
+            bold =True,
+            theme_text_color="Custom",
         )
         self.add_widget(title_label)
 
@@ -51,7 +57,8 @@ class ClassDisplay(MDScreen):
         )
         sort_button = MDRaisedButton(
             text="Sort Options",
-            pos_hint={"center_x": 0.8, "top": 1},
+            pos_hint={"center_x": 0.8, "top": 0.9},
+            size_hint=(0.2, None),
             on_release=lambda x: self.menu.open()
         )
         self.add_widget(sort_button)
@@ -74,14 +81,48 @@ class ClassDisplay(MDScreen):
         self.add_widget(back_button)
 
     def display_students(self):
-        self.students_layout.clear_widgets()
+        # self.students_layout.clear_widgets()
+        # for student_id, student_code, student_name, gpa in self.students_data:
+        #     gpa_display = f"{gpa:.2f}" if gpa is not None else "N/A"
+        #     item = OneLineListItem(
+        #         text=f"{student_name} ({student_code}) - GPA: {gpa_display}",
+        #         on_release=lambda instance, code=student_code, name=student_name: self.show_student_grade(instance, code, name),
+        #     )
+        #     self.students_layout.add_widget(item)
+
+        if hasattr(self, 'data_table'):
+            self.remove_widget(self.data_table)
+
+        table_data = []
         for student_id, student_code, student_name, gpa in self.students_data:
             gpa_display = f"{gpa:.2f}" if gpa is not None else "N/A"
-            item = OneLineListItem(
-                text=f"{student_name} ({student_code}) - GPA: {gpa_display}",
-                on_release=lambda instance, code=student_code, name=student_name: self.show_student_grade(instance, code, name),
-            )
-            self.students_layout.add_widget(item)
+            table_data.append((student_name, student_code, gpa_display))
+
+        self.data_table = MDDataTable(
+            size_hint=(0.95, 0.6),
+            pos_hint={"center_x": 0.5, "center_y": 0.5},
+            use_pagination=True,
+            rows_num=10,
+            column_data=[
+                ("Name", dp(30)),
+                ("Code", dp(30)),
+                ("GPA", dp(20)),
+            ],
+            row_data=table_data,
+        )
+        self.data_table.bind(on_row_press=self.on_row_press)
+        self.add_widget(self.data_table)
+
+    def on_row_press(self, instance_table, instance_row):
+        name = instance_row.text
+        selected_data = None
+        for student in self.students_data:
+            if name in student:
+                selected_data = student
+                break
+        if selected_data:
+            _, code, name, _ = selected_data
+            self.show_student_grade(None, code, name)
 
     def sort_students(self, order):
         self.sort_order = order
@@ -119,11 +160,70 @@ class ClassDisplay(MDScreen):
         self.dialog = MDDialog(
             title="Student Grade Details",
             text=text,
-            buttons=[MDRaisedButton(text="Close", on_release=lambda x: self.dialog.dismiss())]
+            buttons=[
+                MDRaisedButton(text="Change", on_release=self.edit_student_grade),
+                MDRaisedButton(text="Close", on_release=lambda x: self.dialog.dismiss())]
         )
+        self.dialog.student_code = student_code
         self.dialog.open()
 
     def go_back(self, instance):
         self.manager.current = "teacher_classes"
         if self.dialog:
             self.dialog.dismiss()
+
+    def edit_student_grade(self, instance):
+        self.dialog.dismiss()
+        # Tạo dialog mới để nhập điểm
+        self.grade_inputs = {
+            "attendance": MDTextField(hint_text="Attendance (10%)"),
+            "midterm": MDTextField(hint_text="Midterm (40%)"),
+            "final": MDTextField(hint_text="Final (50%)"),
+        }
+
+        content = MDBoxLayout(orientation="vertical", size_hint_y=None, height=300, padding=10)
+        for field in self.grade_inputs.values():
+            content.add_widget(field)
+
+        self.edit_dialog = MDDialog(
+            title="Edit Grades",
+            type="custom",
+            content_cls=content,
+            buttons=[
+                MDRaisedButton(text="Save", on_release=self.save_updated_grade),
+                MDRaisedButton(text="Cancel", on_release=lambda x: self.edit_dialog.dismiss())
+            ]
+        )
+        self.edit_dialog.open()
+
+    def save_updated_grade(self, instance):
+        try:
+            attendance_text = self.grade_inputs["attendance"].text.strip()
+            midterm_text = self.grade_inputs["midterm"].text.strip()
+            final_text = self.grade_inputs["final"].text.strip()
+
+            if not attendance_text or not midterm_text or not final_text:
+                raise ValueError("Please fill all grade fields.")
+
+            attendance = float(attendance_text)
+            midterm = float(midterm_text)
+            final = float(final_text)
+            gpa = round(attendance * 0.1 + midterm * 0.4 + final * 0.5, 2)
+
+            app = MDApp.get_running_app()
+            teacher_code = app.username
+            subject_id = get_subject_id_by_teacher_code(teacher_code)
+
+            student_code = self.dialog.student_code
+            student_id = get_student_id_by_code(student_code)  # bạn cần có hàm này
+
+            update_student_grade(student_id, subject_id, attendance, midterm, final, gpa)
+
+            self.edit_dialog.dismiss()
+            self.on_enter()  # refresh màn hình
+        except ValueError as ve:
+            print("Invalid input:", ve)
+            # Bạn có thể hiện thông báo lỗi bằng dialog để user biết
+        except Exception as e:
+            print("Unexpected error:", e)
+
