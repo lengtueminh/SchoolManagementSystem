@@ -284,7 +284,6 @@ def get_student_grades(student_code):
     result_subjects = []
     result_gpa_total = None
 
-    # Lấy dữ liệu bảng điểm từng môn
     for result in cursor.stored_results():
         if result.column_names == ('SubjectName', 'Score_10', 'Score_40', 'Score_50', 'GPA_Subject'):
             result_subjects = result.fetchall()
@@ -293,7 +292,6 @@ def get_student_grades(student_code):
 
     conn.close()
     
-    # Trả về bảng điểm môn học và GPA tổng
     return result_subjects, result_gpa_total['GPA_Total'] if result_gpa_total else None
 
 def update_teacher_details(teacher_code, new_name, new_email):
@@ -393,3 +391,75 @@ def get_all_subjects():
         FROM Subjects
     """
     return fetch_all(query)
+
+def get_student_grade_details(student_code, subject_id): 
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    query = """
+    SELECT 
+        s.SubjectName,
+        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score ELSE NULL END) AS Attendance,
+        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score ELSE NULL END) AS Midterm,
+        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score ELSE NULL END) AS Final,
+        ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
+    FROM Grades g
+    JOIN Subjects s ON g.SubjectID = s.SubjectID
+    JOIN Students st ON g.StudentID = st.StudentID
+    WHERE st.StudentCode = %s AND g.SubjectID = %s
+    GROUP BY s.SubjectName
+    """
+
+    cursor.execute(query, (student_code, subject_id))
+    result = cursor.fetchone()
+    conn.close()
+    return result  # subject_name, attendance, midterm, final, gpa
+
+
+def get_students_in_class_with_gpa(class_id, subject_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+        SELECT 
+            st.StudentID,
+            st.StudentCode,
+            st.StudentName,
+            ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
+        FROM 
+            Students st
+        LEFT JOIN Grades g ON st.StudentID = g.StudentID AND g.SubjectID = %s
+        WHERE 
+            st.ClassID = %s
+        GROUP BY 
+            st.StudentID, st.StudentCode, st.StudentName
+    """
+    cursor.execute(query, (subject_id, class_id))
+    result = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+    return result  # List of (StudentID, StudentCode, StudentName, GPA)
+
+def get_subject_id_by_teacher_code(teacher_code):
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+    SELECT SubjectID FROM Teachers WHERE TeacherCode = %s
+    """
+    cursor.execute(query, (teacher_code,))
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        return result[0]
+    return None
+
+def get_class_name_by_id(class_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = "SELECT ClassName FROM Classes WHERE ClassID = %s"
+    cursor.execute(query, (class_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else "Unknown Class"
