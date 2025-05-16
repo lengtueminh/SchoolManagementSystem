@@ -11,7 +11,7 @@ from kivymd.uix.list import OneLineListItem
 from kivymd.toast import toast
 from functools import partial
 
-from utils.db_utils import get_teacher_name, get_teacher_details, get_classes_by_teacher, get_students_in_class, get_student_grade
+from utils.db_utils import get_teacher_name, get_teacher_details, get_classes_by_teacher, get_students_in_class, get_student_grade, get_subject_id_by_teacher_code
 from kivymd.uix.boxlayout import MDBoxLayout
 
 
