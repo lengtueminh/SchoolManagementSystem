@@ -6,7 +6,7 @@ def connect_db():
         connection = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="tueminh25",    # CHANGE PASSWORD HERE 
+            password="thuhangtran128",    # CHANGE PASSWORD HERE 
             database="SchoolManagementSystem"
         )
         return connection
@@ -677,3 +677,34 @@ def ad_delete_subject(subject_id):
     finally:
         cursor.close()
         conn.close()
+
+def update_student_grade(student_id, subject_id, attendance, midterm, final, gpa):
+
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+        UPDATE Grades
+        SET Score = %s
+        WHERE StudentID = %s AND SubjectID = %s AND Percentage = %s
+    """
+
+    data = [
+        (attendance, student_id, subject_id, 0.10),
+        (midterm, student_id, subject_id, 0.40),
+        (final, student_id, subject_id, 0.50),
+    ]
+
+    for score_data in data:
+        cursor.execute(query, score_data)
+
+    conn.commit()
+    cursor.close()
+
+def get_student_id_by_code(student_code):
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT StudentID FROM Students WHERE StudentCode = %s", (student_code,))
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return result[0] if result else None
