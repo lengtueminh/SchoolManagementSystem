@@ -13,7 +13,23 @@ def connect_db():
     except Error as e:
         print(f"Database connection error: {e}")
         return None
-    
+
+def fetch_all(query, params=None):
+    conn = connect_db()
+    if conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            return result
+        except mysql.connector.Error as err:
+            print(f"Error executing query '{query}': {err}")
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+    return None
+
 def get_teacher_name(teacher_code):
     connection = connect_db()
     if connection:
@@ -333,3 +349,47 @@ def check_student_exists(student_code):
             connection.close()
     return False
 
+def get_all_students():
+    query = """
+        SELECT 
+            s.StudentID AS id,
+            s.StudentCode AS code,
+            s.StudentName AS name,
+            s.BirthDate AS birthdate,
+            c.ClassName AS classname,
+            s.Address AS address
+        FROM Students s
+        JOIN Classes c ON s.ClassID = c.ClassID
+    """
+    return fetch_all(query)
+
+def get_all_teachers():
+    query = """
+        SELECT 
+            t.TeacherID AS id,
+            t.TeacherCode AS code,
+            t.TeacherName AS name,
+            s.SubjectName AS subjectname,
+            t.Email AS email
+        FROM Teachers t
+        JOIN Subjects s ON t.SubjectID = s.SubjectID
+    """
+    return fetch_all(query)
+
+def get_all_classes():
+    query = """
+        SELECT 
+            ClassID AS id,
+            ClassName AS classname
+        FROM Classes
+    """
+    return fetch_all(query)
+
+def get_all_subjects():
+    query = """
+        SELECT 
+            SubjectID AS subjectid,
+            SubjectName AS subjectname
+        FROM Subjects
+    """
+    return fetch_all(query)

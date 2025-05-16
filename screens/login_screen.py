@@ -137,10 +137,11 @@ class LoginScreen(MDScreen):
                 self.manager.current = "teacher_homescreen"
             elif role == "Student":
                 self.manager.current = "student_screen"
-            # else:
-            #     self.manager.current = "admin_screen"
+            else:
+                self.manager.current = "admin_homescreen"
         else:
             print("Login failed. Wrong username, password or role!")
 
         cursor.close()
         connection.close()
+

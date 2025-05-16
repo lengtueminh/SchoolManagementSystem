@@ -149,6 +149,18 @@ BEGIN
 END //
 DELIMITER ;
 
+-- Trigger: Add user sau khi thêm admin
+DELIMITER //
+CREATE TRIGGER after_admin_insert
+AFTER INSERT ON Admins
+FOR EACH ROW
+BEGIN
+    INSERT INTO Users (Username, Password, UserType, TeacherID)
+    VALUES (NEW.AdminCode, '12345', 'admin', NEW.AdminID);
+END //
+DELIMITER ;
+
+
 -- Trigger: Add user sau khi thêm học sinh 
 DELIMITER //
 CREATE TRIGGER after_student_insert
@@ -619,3 +631,5 @@ INSERT INTO Admins (AdminName, Email) VALUES
 ('Rutter Benka', 'rutter.benka@yahoo.com'),
 ('Rudie O'' Ronan', 'rudie.oronan@yahoo.com'),
 ('Alia Steffan', 'alia.steffan@hotmail.fr');
+
+select * from Admins;
