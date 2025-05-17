@@ -146,6 +146,31 @@ def get_students_in_class(class_id):
             connection.close()
     return []
 
+def get_students_in_class_with_gpa(class_id, subject_id):
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+        SELECT
+            st.StudentID,
+            st.StudentCode,
+            st.StudentName,
+            ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
+        FROM
+            Students st
+        LEFT JOIN Grades g ON st.StudentID = g.StudentID AND g.SubjectID = %s
+        WHERE
+            st.ClassID = %s
+        GROUP BY
+            st.StudentID, st.StudentCode, st.StudentName
+    """
+    cursor.execute(query, (subject_id, class_id))
+    result = cursor.fetchall()
+
+
+    cursor.close()
+    conn.close()
+    return result  # List of (StudentID, StudentCode, StudentName, GPA)
+
 def get_student_grade(student_code, subject_id):
     connection = connect_db()
     if connection:
@@ -246,6 +271,42 @@ def get_student_classes(student_code):
             cursor.close()
             connection.close()
     return []
+
+def update_student_grade(student_id, subject_id, attendance, midterm, final, gpa):
+
+
+    conn = connect_db()
+    cursor = conn.cursor()
+    query = """
+        UPDATE Grades
+        SET Score = %s
+        WHERE StudentID = %s AND SubjectID = %s AND Percentage = %s
+    """
+
+
+    data = [
+        (attendance, student_id, subject_id, 0.10),
+        (midterm, student_id, subject_id, 0.40),
+        (final, student_id, subject_id, 0.50),
+    ]
+
+
+    for score_data in data:
+        cursor.execute(query, score_data)
+
+
+    conn.commit()
+    cursor.close()
+
+def get_student_id_by_code(student_code):
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT StudentID FROM Students WHERE StudentCode = %s", (student_code,))
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return result[0] if result else None
+
 
 def update_student_details(student_code, new_name, new_address):
     connection = connect_db()
