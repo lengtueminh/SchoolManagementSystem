@@ -422,14 +422,14 @@ BEGIN
     FROM Students
     WHERE StudentCode = inputStudentCode;
     -- Truy xuất môn học và giáo viên từ StudentID
-    SELECT 
+    SELECT DISTINCT
         s.SubjectName,
         t.TeacherName
     FROM Students st
     JOIN Classes c ON st.ClassID = c.ClassID
-    JOIN Teacher_Class_Subject tcs ON c.ClassID = tcs.ClassID
-    JOIN Teachers t ON tcs.TeacherID = t.TeacherID
-    JOIN Subjects s ON tcs.SubjectID = s.SubjectID
+    JOIN Teacher_Class tc ON c.ClassID = tc.ClassID
+    JOIN Teachers t ON tc.TeacherID = t.TeacherID
+    JOIN Subjects s ON t.SubjectID = s.SubjectID
     WHERE st.StudentID = sid;
 END//
 DELIMITER ;

@@ -429,24 +429,33 @@ def get_all_teachers():
             t.Email AS email
         FROM Teachers t
         JOIN Subjects s ON t.SubjectID = s.SubjectID
+        ORDER BY t.TeacherID ASC
     """
     return fetch_all(query)
 
 def get_all_classes():
     query = """
         SELECT 
-            ClassID AS id,
-            ClassName AS classname
-        FROM Classes
+            c.ClassID AS id,
+            c.ClassName AS classname,
+            COUNT(s.StudentID) AS total_students
+        FROM Classes c
+        LEFT JOIN Students s ON c.ClassID = s.ClassID
+        GROUP BY c.ClassID, c.ClassName
+        ORDER BY c.ClassID ASC
     """
     return fetch_all(query)
 
 def get_all_subjects():
     query = """
         SELECT 
-            SubjectID AS subjectid,
-            SubjectName AS subjectname
-        FROM Subjects
+            s.SubjectID AS subjectid,
+            s.SubjectName AS subjectname,
+            COUNT(t.TeacherID) AS total_teachers
+        FROM Subjects s
+        LEFT JOIN Teachers t ON s.SubjectID = t.SubjectID
+        GROUP BY s.SubjectID, s.SubjectName
+        ORDER BY s.SubjectID ASC
     """
     return fetch_all(query)
 
@@ -821,6 +830,69 @@ def get_classID_by_name(class_name):
                 return None
         except Exception as e:
             print(f"Failed to get class ID: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_student_info(student_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+                SELECT 
+                    s.StudentName,
+                    s.StudentCode,
+                    s.Address,
+                    c.ClassName
+                FROM Students s
+                LEFT JOIN Classes c ON s.ClassID = c.ClassID
+                WHERE s.StudentCode = %s
+            """
+            cursor.execute(query, (student_code,))
+            result = cursor.fetchone()
+            if result:
+                return {
+                    'StudentName': result['StudentName'],
+                    'StudentCode': result['StudentCode'],
+                    'Address': result['Address'],
+                    'ClassName': result['ClassName']
+                }
+            return None
+        except Error as e:
+            print(f"Error fetching student info: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None
+
+def get_student_subjects_and_teachers(student_code):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+                SELECT DISTINCT
+                    s.SubjectName,
+                    t.TeacherName
+                FROM Students st
+                JOIN Classes c ON st.ClassID = c.ClassID
+                JOIN Teacher_Class tc ON c.ClassID = tc.ClassID
+                JOIN Teachers t ON tc.TeacherID = t.TeacherID
+                JOIN Subjects s ON t.SubjectID = s.SubjectID
+                WHERE st.StudentCode = %s
+                ORDER BY s.SubjectName
+            """
+            cursor.execute(query, (student_code,))
+            result = cursor.fetchall()
+            if result:
+                return result
+            return None
+        except Error as e:
+            print(f"Error fetching student subjects and teachers: {e}")
             return None
         finally:
             cursor.close()

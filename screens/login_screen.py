@@ -22,7 +22,7 @@ class LoginScreen(MDScreen):
                              height=700)
 
         title_label = MDLabel(
-            text="Login to the System",
+            text="Login",
             halign="center",
             theme_text_color="Primary",
             font_style="H4",
