@@ -247,8 +247,6 @@ def get_student_classes(student_code):
             connection.close()
     return []
 
-
-
 def update_student_details(student_code, new_name, new_address):
     connection = connect_db()
     if connection:
@@ -269,7 +267,6 @@ def update_student_details(student_code, new_name, new_address):
             cursor.close()
             connection.close()
     return False
-
 
 def get_student_grades(student_code):
     conn = connect_db()  # Kết nối cơ sở dữ liệu
@@ -437,11 +434,8 @@ def ad_update_teacher_details(teacher_code, new_name, new_subject_id, new_email)
     if connection:
         try:
             cursor = connection.cursor()
-            query = """
-                UPDATE Teachers
-                SET TeacherName = %s, SubjectID = %s, Email = %s,
-                WHERE TeacherCode = %s
-            """
+            query = 'UPDATE Teachers SET TeacherName = %s, SubjectID = %s, Email = %s WHERE TeacherCode = %s'
+            print(f"Updating teacher with teacher_code={teacher_code}, new_name={new_name}, new_subject_id={new_subject_id}, new_email={new_email}")
             cursor.execute(query, (new_name, new_subject_id, new_email, teacher_code))
             connection.commit()
             return True
@@ -454,43 +448,40 @@ def ad_update_teacher_details(teacher_code, new_name, new_subject_id, new_email)
     return False
 
 def ad_add_student(name, address, birthdate, class_id):
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO Students (name, address, birthdate, class_id)
-            VALUES (?, ?, ?, ?)
-        ''', (name, address, birthdate, class_id))
-        
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Failed to add student: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = 'INSERT INTO Students (StudentName, Address, BirthDate, ClassID) VALUES (%s, %s, %s, %s)'
+            cursor.execute(query, (name, address, birthdate, class_id))
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Failed to add student: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
 
 # Thêm giáo viên mới (không tạo mã, mã do DB tự động tạo)
 def ad_add_teacher(name, subject_id, email):
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO Teachers (name, subject_id, email)
-            VALUES (?, ?, ?)
-        ''', (name, subject_id, email))
-        
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"Failed to add teacher: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = 'INSERT INTO Teachers (TeacherName, SubjectID, Email) VALUES (%s, %s, %s)'
+            print(f"Adding teacher with name={name}, subject_id={subject_id}, email={email}")
+            cursor.execute(query, (name, subject_id, email))
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Failed to add teacher: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
 
 # Thêm lớp học mới
 def ad_add_class(classname):
@@ -499,8 +490,8 @@ def ad_add_class(classname):
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO Classes (classname)
-            VALUES (?)
+            INSERT INTO Classes (ClassName)
+            VALUES (%s)
         ''', (classname,))
         
         conn.commit()
@@ -519,8 +510,8 @@ def ad_add_subject(subjectname):
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO Subjects (subjectname)
-            VALUES (?)
+            INSERT INTO Subjects (SubjectName)
+            VALUES (%s)
         ''', (subjectname,))
         
         conn.commit()
@@ -534,41 +525,77 @@ def ad_add_subject(subjectname):
 
 # Xóa học sinh theo mã
 def ad_delete_student(student_code):
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            DELETE FROM Students WHERE code = ?
-        ''', (student_code,))
-        
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Failed to delete student: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+
+            # Step 1: Get the StudentID for the given StudentCode
+            cursor.execute('SELECT StudentID FROM Students WHERE StudentCode = %s', (student_code,))
+            result = cursor.fetchone()
+            if not result:
+                print(f"Student with StudentCode {student_code} not found.")
+                return False
+
+            student_id = result[0]
+
+            # Step 2: Delete dependent records from Grades table
+            cursor.execute('DELETE FROM Grades WHERE StudentID = %s', (student_id,))
+            connection.commit()
+
+            # Step 3: Delete dependent records from Users table
+            cursor.execute('DELETE FROM Users WHERE StudentID = %s', (student_id,))
+            connection.commit()
+
+            # Step 4: Delete the student from Students table
+            cursor.execute('DELETE FROM Students WHERE StudentCode = %s', (student_code,))
+            connection.commit()
+
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Failed to delete student: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
 
 # Xóa giáo viên theo mã
 def ad_delete_teacher(teacher_code):
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            DELETE FROM Teachers WHERE code = ?
-        ''', (teacher_code,))
-        
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Failed to delete teacher: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+
+            # Step 1: Get the TeacherID for the given TeacherCode
+            cursor.execute('SELECT TeacherID FROM Teachers WHERE TeacherCode = %s', (teacher_code,))
+            result = cursor.fetchone()
+            if not result:
+                print(f"Teacher with TeacherCode {teacher_code} not found.")
+                return False
+
+            teacher_id = result[0]
+
+            # Step 2: Delete dependent records from Teacher_Class table
+            cursor.execute('DELETE FROM Teacher_Class WHERE TeacherID = %s', (teacher_id,))
+            connection.commit()
+
+            # Step 3: Delete dependent records from Users table
+            cursor.execute('DELETE FROM Users WHERE TeacherID = %s', (teacher_id,))
+            connection.commit()
+
+            # Step 4: Delete the teacher from Teachers table
+            cursor.execute('DELETE FROM Teachers WHERE TeacherCode = %s', (teacher_code,))
+            connection.commit()
+
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Failed to delete teacher: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False
 
 # Xóa lớp học theo ID
 def ad_delete_class(class_id):
@@ -577,7 +604,7 @@ def ad_delete_class(class_id):
         cursor = conn.cursor()
         
         cursor.execute('''
-            DELETE FROM Classes WHERE id = ?
+            DELETE FROM Classes WHERE ClassID = %s
         ''', (class_id,))
         
         conn.commit()
@@ -591,19 +618,80 @@ def ad_delete_class(class_id):
 
 # Xóa môn học theo ID
 def ad_delete_subject(subject_id):
-    try:
-        conn = connect_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            DELETE FROM Subjects WHERE subjectid = ?
-        ''', (subject_id,))
-        
-        conn.commit()
-        return cursor.rowcount > 0
-    except Exception as e:
-        print(f"Failed to delete subject: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+
+            # Step 1: Get all teachers associated with the subject
+            cursor.execute('SELECT TeacherID, TeacherCode FROM Teachers WHERE SubjectID = %s', (subject_id,))
+            teachers = cursor.fetchall()
+            if teachers:
+                for teacher in teachers:
+                    teacher_id, teacher_code = teacher
+                    # Delete dependent records from Teacher_Class table
+                    cursor.execute('DELETE FROM Teacher_Class WHERE TeacherID = %s', (teacher_id,))
+                    connection.commit()
+                    # Delete dependent records from Users table
+                    cursor.execute('DELETE FROM Users WHERE TeacherID = %s', (teacher_id,))
+                    connection.commit()
+                    # Delete the teacher
+                    cursor.execute('DELETE FROM Teachers WHERE TeacherCode = %s', (teacher_code,))
+                    connection.commit()
+
+            # Step 2: Delete dependent records from Grades table
+            cursor.execute('DELETE FROM Grades WHERE SubjectID = %s', (subject_id,))
+            connection.commit()
+
+            # Step 3: Delete the subject from Subjects table
+            cursor.execute('DELETE FROM Subjects WHERE SubjectID = %s', (subject_id,))
+            connection.commit()
+
+            return True, "Subject and associated teachers deleted successfully."
+        except Exception as e:
+            print(f"Failed to delete subject: {e}")
+            return False, f"Failed to delete subject: {e}"
+        finally:
+            cursor.close()
+            connection.close()
+    return False, "Database connection failed."
+
+def get_teachers_by_subject(subject_id):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = '''
+                SELECT t.TeacherID, t.TeacherCode, t.TeacherName, t.Email
+                FROM Teachers t
+                WHERE t.SubjectID = %s
+            '''
+            cursor.execute(query, (subject_id,))
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Failed to get teachers: {e}")
+            return []
+        finally:
+            cursor.close()
+            connection.close()
+    return []
+
+def get_classID_by_name(class_name):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = "SELECT ClassID FROM Classes WHERE ClassName = %s"
+            cursor.execute(query, (class_name,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]  # Trả về ClassID
+            else:
+                return None
+        except Exception as e:
+            print(f"Failed to get class ID: {e}")
+            return None
+        finally:
+            cursor.close()
+            connection.close()
+    return None

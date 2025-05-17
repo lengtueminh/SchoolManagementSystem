@@ -96,6 +96,11 @@ CREATE TABLE Teacher_Class (
     FOREIGN KEY (ClassID) REFERENCES Classes(ClassID)
 );
 
+CREATE TABLE StudentCodeSequence (
+    YearPrefix VARCHAR(4), -- e.g., 'HS25'
+    LastSequence INT,      -- Last used sequence number for that year
+    PRIMARY KEY (YearPrefix)
+);
 -- Trigger: Tự động tạo mã sinh viên dạng "HS24-0001" 
 DELIMITER //
 CREATE TRIGGER generate_student_code
@@ -103,13 +108,33 @@ BEFORE INSERT ON Students
 FOR EACH ROW
 BEGIN
     DECLARE year_suffix VARCHAR(2);
-    DECLARE new_code VARCHAR(20);
-    SET year_suffix = RIGHT(YEAR(CURDATE()), 2); -- Lấy 2 số cuối của năm hiện tại (ví dụ 24)
-    SET new_code = CONCAT('HS', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Students), 4, '0'));
-    SET NEW.StudentCode = new_code;
+    DECLARE year_prefix VARCHAR(4);
+    DECLARE new_sequence INT;
+
+    -- Step 1: Get the year prefix (e.g., 'HS25')
+    SET year_suffix = RIGHT(YEAR(CURDATE()), 2); -- e.g., '25' for 2025
+    SET year_prefix = CONCAT('HS', year_suffix); -- e.g., 'HS25'
+
+    -- Step 2: Atomically increment the sequence number for this year
+    INSERT INTO StudentCodeSequence (YearPrefix, LastSequence)
+    VALUES (year_prefix, 1)
+    ON DUPLICATE KEY UPDATE LastSequence = LastSequence + 1;
+
+    -- Step 3: Get the new sequence number
+    SELECT LastSequence INTO new_sequence
+    FROM StudentCodeSequence
+    WHERE YearPrefix = year_prefix;
+
+    -- Step 4: Generate the StudentCode (e.g., 'HS25-0001')
+    SET NEW.StudentCode = CONCAT(year_prefix, '-', LPAD(new_sequence, 4, '0'));
 END//
 DELIMITER ;
 
+CREATE TABLE TeacherCodeSequence (
+    YearPrefix VARCHAR(4),
+    LastSequence INT,
+    PRIMARY KEY (YearPrefix)
+);
 -- Trigger: Tự động tạo mã giáo viên dạng "GV24-0001" 
 DELIMITER //
 CREATE TRIGGER generate_teacher_code
@@ -117,10 +142,40 @@ BEFORE INSERT ON Teachers
 FOR EACH ROW
 BEGIN
     DECLARE year_suffix VARCHAR(2);
-    DECLARE new_code VARCHAR(20);
+    DECLARE year_prefix VARCHAR(4);
+    DECLARE new_sequence INT;
+    DECLARE new_teacher_code VARCHAR(20);
+    DECLARE code_exists INT DEFAULT 1;
+
     SET year_suffix = RIGHT(YEAR(CURDATE()), 2);
-    SET new_code = CONCAT('GV', year_suffix, '-', LPAD((SELECT COUNT(*) + 1 FROM Teachers), 4, '0'));
-    SET NEW.TeacherCode = new_code;
+    SET year_prefix = CONCAT('GV', year_suffix);
+
+    -- Insert or update the sequence
+    INSERT INTO TeacherCodeSequence (YearPrefix, LastSequence)
+    VALUES (year_prefix, 1)
+    ON DUPLICATE KEY UPDATE LastSequence = LastSequence + 1;
+
+    -- Get the new sequence
+    SELECT LastSequence INTO new_sequence
+    FROM TeacherCodeSequence
+    WHERE YearPrefix = year_prefix;
+
+    -- Generate and check for unique TeacherCode
+    WHILE code_exists > 0 DO
+        SET new_teacher_code = CONCAT(year_prefix, '-', LPAD(new_sequence, 4, '0'));
+        SELECT COUNT(*) INTO code_exists
+        FROM Teachers
+        WHERE TeacherCode = new_teacher_code;
+        IF code_exists > 0 THEN
+            SET new_sequence = new_sequence + 1;
+            UPDATE TeacherCodeSequence
+            SET LastSequence = new_sequence
+            WHERE YearPrefix = year_prefix;
+        END IF;
+    END WHILE;
+
+    -- Assign the unique TeacherCode to the new row
+    SET NEW.TeacherCode = new_teacher_code;
 END//
 DELIMITER ;
 
@@ -632,4 +687,20 @@ INSERT INTO Admins (AdminName, Email) VALUES
 ('Rudie O'' Ronan', 'rudie.oronan@yahoo.com'),
 ('Alia Steffan', 'alia.steffan@hotmail.fr');
 
+SELECT t.Teacherid, t.Teachercode, t.Teachername, t.Email
+            FROM Teachers t
+            WHERE t.SubjectID = 1;
+            
 select * from Admins;
+            SELECT 
+                s.StudentID AS id,
+                s.StudentCode AS code,
+                s.StudentName AS name,
+                s.BirthDate AS birthdate,
+                c.ClassName AS classname,
+                s.Address AS address
+            FROM Students s
+            JOIN Classes c ON s.ClassID = c.ClassID
+            WHERE s.ClassID = 4;
+select * from Students where StudentID = 43;
+select * from Subjects;
