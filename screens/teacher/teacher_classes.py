@@ -6,9 +6,12 @@ from kivymd.uix.scrollview import MDScrollView, ScrollView
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.card import MDCard
 from kivymd.uix.dialog import MDDialog
+from kivymd.uix.gridlayout import MDGridLayout
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.label import MDLabel
+from kivymd.uix.button import MDIconButton
 
-
-from utils.db_utils import get_classes_by_teacher, get_student_grade
+from utils.db_utils import get_classes_by_teacher, get_student_grade, get_student_count_by_class
 from kivymd.uix.boxlayout import MDBoxLayout
 
 
@@ -20,49 +23,10 @@ class TeacherClassesScreen(MDScreen):
 
 
     def on_enter(self):
-        # self.clear_widgets()
-
-
-        # app = MDApp.get_running_app()
-        # teacher_code = app.username
-       
-        # your_classes = MDLabel(
-        #     text=f"YOUR CLASSES",
-        #     halign="center",
-        #     pos_hint={"center_y": 0.95},
-        #     font_style="H6",
-        #     bold=True
-        # )
-
-
-        # buttons_layout = MDBoxLayout(
-        #     orientation="vertical",
-        #     spacing=15,
-        #     size_hint=(0.6, None),
-        #     height=300,
-        #     pos_hint={"center_x": 0.5, "center_y": 0.45}
-        # )
-
-
-        # self.classes = get_classes_by_teacher(teacher_code)
-        # for class_id, class_name in self.classes:
-        #     class_button = MDRaisedButton(
-        #         text=class_name,
-        #         on_release=lambda btn, cid=class_id: self.show_students(btn, cid)
-        #         )
-        #     buttons_layout.add_widget(class_button)
-
-
-        # back_button = MDRaisedButton(text="Back", on_release=self.go_back)
-        # buttons_layout.add_widget(back_button)
-        # self.add_widget(your_classes)
-        # self.add_widget(buttons_layout)
         self.clear_widgets()
-
 
         app = MDApp.get_running_app()
         teacher_code = app.username
-
 
         your_classes = MDLabel(
             text="YOUR CLASSES",
@@ -76,43 +40,113 @@ class TeacherClassesScreen(MDScreen):
         self.add_widget(your_classes)
 
 
-        container = MDBoxLayout(
-            orientation='vertical',
+        # container = MDBoxLayout(
+        #     orientation='vertical',
+        #     spacing=20,
+        #     padding=[0, 20],
+        #     size_hint=(0.8, None),
+        #     pos_hint={"center_x": 0.5},
+        # )
+        # container.bind(minimum_height=container.setter('height'))
+        grid = MDGridLayout(
+            cols=2,
             spacing=20,
-            padding=[0, 20],
-            size_hint=(0.8, None),
+            padding=[20, 20],
+            adaptive_height=True,
+            size_hint=(None, None),
+            width=360,
             pos_hint={"center_x": 0.5},
         )
-        container.bind(minimum_height=container.setter('height'))
-
+        grid.bind(minimum_height=grid.setter('height'))
 
         self.classes = get_classes_by_teacher(teacher_code)
         for class_id, class_name in self.classes:
+            student_count = get_student_count_by_class(class_id=class_id) #
+            # card = MDCard(
+            #     orientation='horizontal',
+            #     padding=15,
+            #     size_hint=(None, None),
+            #     size=(300, 100),
+            #     ripple_behavior=True,
+            #     pos_hint={"center_x": 0.5},
+            #     on_release=lambda card, cid=class_id: self.show_students(card, cid),
+            # )
             card = MDCard(
-                orientation='horizontal',
+                orientation='vertical',
                 padding=15,
                 size_hint=(None, None),
-                size=(300, 100),
+                size=(160, 120),
                 ripple_behavior=True,
-                pos_hint={"center_x": 0.5},
+                radius=[15, 15, 15, 15],
+                # md_bg_color=(0.9, 0.95, 1, 1),
+                elevation=1,
                 on_release=lambda card, cid=class_id: self.show_students(card, cid),
+                pos_hint={"center_x": 0.5},
             )
+            box = MDBoxLayout(
+                orientation='vertical', 
+                spacing=5, 
+                padding=5,
+                adaptive_height=True,)
+
+            # 📚 Icon lớp học
+            icon = MDIconButton(
+                icon="school",
+                theme_text_color="Custom",
+                text_color=(0.2, 0.4, 0.6, 1),
+                pos_hint={"center_x": 0.5},
+                icon_size="32sp",
+            )
+
             label = MDLabel(
                 text=class_name,
                 halign="center",
-                font_style="H6",
-                size_hint_x=0.9,
-                valign="center"
+                font_style="Subtitle1",
+                theme_text_color="Primary",
+                size_hint_y=None,
+                height=25,
+                # valign="center"
                 )
+            student_info = MDLabel(
+            text=f"{student_count} students",
+            halign="center",
+            font_style="Caption",
+            theme_text_color="Hint",
+            size_hint_y=None,
+            height=20,
+            )
            
-            card.add_widget(label)
-            container.add_widget(card)
+            # card.add_widget(label)
+            # container.add_widget(card)
+            box.add_widget(icon)
+            box.add_widget(label)
+            box.add_widget(student_info)
+            card.add_widget(box)
+            grid.add_widget(card)
 
 
-        scroll = MDScrollView(size_hint=(1, 0.8), pos_hint={"center_x": 0.5, "center_y": 0.4})
-        scroll.add_widget(container)
-        self.add_widget(scroll)
+        # scroll = MDScrollView(
+        #     size_hint=(1, 0.8), 
+        #     pos_hint={"center_x": 0.5, "center_y": 0.45})
+        # scroll.add_widget(grid)
+        # self.add_widget(scroll)
+        wrapper = MDBoxLayout(
+            orientation="vertical",
+            size_hint=(1, 0.8),
+            padding=[0, 60, 0, 0],
+            pos_hint={"center_x": 0.5, "center_y": 0.55},
+            )
 
+        scroll = MDScrollView(
+        do_scroll_x=False,
+        size_hint=(None, None),
+        size=(360, 400),
+        pos_hint={"center_x": 0.5}
+    )
+        scroll.add_widget(grid)
+
+        wrapper.add_widget(scroll)
+        self.add_widget(wrapper)
 
         back_button = MDRaisedButton(
             text="Back",

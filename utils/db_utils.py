@@ -898,3 +898,20 @@ def get_student_subjects_and_teachers(student_code):
             cursor.close()
             connection.close()
     return None
+
+def get_student_count_by_class(class_id):
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        query = "SELECT COUNT(*) FROM Students WHERE ClassID = %s"
+        cursor.execute(query, (class_id,))
+        count = cursor.fetchone()[0]
+        return count
+    except mysql.connector.Error as err:
+        print("Database error:", err)
+        return 0
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

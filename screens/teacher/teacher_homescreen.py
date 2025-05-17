@@ -38,7 +38,7 @@ class TeacherHomeScreen(MDScreen):
         info_card = MDCard(
             orientation="vertical",
             size_hint=(1, None),
-            height=140,
+            height=180,
             padding=[20, 15, 20, 15],
             elevation=2,
             md_bg_color=[1, 1, 1, 1],  # White background
@@ -51,14 +51,14 @@ class TeacherHomeScreen(MDScreen):
             font_style="H5",
             bold=True,
             size_hint_y=None,
-            height=40
+            height=50
         )
 
         info_grid = MDBoxLayout(
             orientation="vertical",
-            spacing=5,
+            spacing=10,
             size_hint_y=None,
-            height=60,
+            height=100,
             padding=[0, 0, 0, 0]
         )
 
