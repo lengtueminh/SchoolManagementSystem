@@ -16,7 +16,7 @@ from utils.db_utils import (
     ad_update_teacher_details, ad_add_student, ad_add_teacher,
     ad_add_class, ad_add_subject, ad_delete_student,
     ad_delete_teacher, ad_delete_class, ad_delete_subject,
-    get_teachers_by_subject, get_classID_by_name
+    get_teachers_by_subject, get_classID_by_name, connect_db
 )
 from kivymd.uix.gridlayout import MDGridLayout
 
@@ -71,21 +71,6 @@ class PaginatedTableView(MDBoxLayout):
         self.scroll_view.add_widget(self.table_layout)
         self.add_widget(self.scroll_view)
 
-        self.pagination_layout = MDBoxLayout(
-            orientation='horizontal',
-            size_hint_y=None,
-            height=40,
-            padding=10,
-            spacing=10
-        )
-        self.page_label = MDLabel(text=f"Page {self.current_page}", halign='center')
-        prev_button = MDRaisedButton(text='Previous', on_release=self.prev_page, size_hint_x=None, width=120)
-        next_button = MDRaisedButton(text='Next', on_release=self.next_page, size_hint_x=None, width=120)
-        self.pagination_layout.add_widget(prev_button)
-        self.pagination_layout.add_widget(self.page_label)
-        self.pagination_layout.add_widget(next_button)
-        self.add_widget(self.pagination_layout)
-
     def on_full_data(self, instance, value):
         self.filtered_data = value
         self.update_table()
@@ -96,12 +81,7 @@ class PaginatedTableView(MDBoxLayout):
             self.filtered_data = [item for item in self.full_data if any(query in str(item.get(field, '')).lower() for field in self.search_fields)]
         else:
             self.filtered_data = self.full_data
-        self.current_page = 1
         self.update_table()
-
-    def on_current_page(self, instance, value):
-        self.update_table()
-        self.page_label.text = f"Page {self.current_page}"
 
     def update_table(self):
         if not hasattr(self, 'scroll_view'):
@@ -153,21 +133,15 @@ class PaginatedTableView(MDBoxLayout):
                 ))
             return
 
-        # Calculate pagination
-        total_items = len(self.filtered_data)
-        start_index = (self.current_page - 1) * self.items_per_page
-        end_index = start_index + self.items_per_page
-        current_page_data = self.filtered_data[start_index:end_index]
-
         # Add data rows
-        for item in current_page_data:
+        for item in self.filtered_data:
             for header in self.headers:
                 width = self.column_widths.get(header, 100)
                 if header == 'Action':
                     action_layout = MDBoxLayout(orientation='horizontal', spacing=5, size_hint_y=None, height=40)
                     
                     # Add action buttons based on table type
-                    if self.headers == ['Class ID', 'Class Name', 'Total Students', 'Action']:
+                    if self.headers == ['Class ID', 'Class Name', 'Action']:
                         class_id = item.get('id', '')
                         edit_button = MDRaisedButton(
                             text="Edit",
@@ -192,25 +166,6 @@ class PaginatedTableView(MDBoxLayout):
                         )
                         action_layout.add_widget(edit_button)
                         action_layout.add_widget(view_button)
-                        action_layout.add_widget(delete_button)
-                    elif self.headers == ['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action']:
-                        student_code = item.get('code', '')
-                        class_id = get_classID_by_name(item.get('classname', ''))
-                        edit_button = MDRaisedButton(
-                            text="Edit",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, scode=student_code: self.edit_student(scode)
-                        )
-                        delete_button = MDRaisedButton(
-                            text="Delete",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, scode=student_code: self.delete_item(scode, 'student', class_id)
-                        )
-                        action_layout.add_widget(edit_button)
                         action_layout.add_widget(delete_button)
                     elif self.headers == ['ID', 'Code', 'Name', 'Subject', 'Email', 'Action']:
                         teacher_code = item.get('code', '')
@@ -239,7 +194,7 @@ class PaginatedTableView(MDBoxLayout):
                             pos_hint={'center_y': 0.5},
                             on_release=lambda instance, sid=subject_id: self.edit_subject(sid)
                         )
-                        view_teachers_button = MDRaisedButton(
+                        view_button = MDRaisedButton(
                             text="View Teachers",
                             size_hint=(None, None),
                             size=(120, 40),
@@ -254,61 +209,23 @@ class PaginatedTableView(MDBoxLayout):
                             on_release=lambda instance, sid=subject_id: self.delete_item(sid, 'subject')
                         )
                         action_layout.add_widget(edit_button)
-                        action_layout.add_widget(view_teachers_button)
+                        action_layout.add_widget(view_button)
                         action_layout.add_widget(delete_button)
-                    elif self.headers == ['ID', 'Code', 'Name', 'Email', 'Action']:  # For subject's teachers view
-                        teacher_code = item.get('TeacherCode', '')
-                        edit_button = MDRaisedButton(
-                            text="Edit",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, tcode=teacher_code: self.edit_teacher_in_subject(tcode)
-                        )
-                        delete_button = MDRaisedButton(
-                            text="Delete",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, tcode=teacher_code: self.delete_item(tcode, 'teacher')
-                        )
-                        action_layout.add_widget(edit_button)
-                        action_layout.add_widget(delete_button)
+                    
                     self.table_layout.add_widget(action_layout)
                 else:
-                    actual_key = self.column_map.get(header, header)
+                    actual_key = self.column_map.get(header, header.lower())
                     text = str(item.get(actual_key, ''))
-                    if self.headers == ['Class ID', 'Class Name', 'Action'] or self.headers == ['Subject ID', 'Subject Name']:
-                        self.table_layout.add_widget(MDLabel(
-                            text=text,
-                            halign='center',
-                            valign='middle',
-                            size_hint_y=None,
-                            height=40,
-                            size_hint_x=None,
-                            width=width,
-                            text_size=(width, 40),
-                        ))
-                    else:
-                        self.table_layout.add_widget(MDLabel(
-                            text=text,
-                            halign='left',
-                            valign='middle',
-                            size_hint_y=None,
-                            height=40,
-                            size_hint_x=None,
-                            width=width,
-                            text_size=(width, 40),
-                        ))
-
-    def next_page(self, instance):
-        total_pages = (len(self.filtered_data) + self.items_per_page - 1) // self.items_per_page
-        if self.current_page < total_pages:
-            self.current_page += 1
-
-    def prev_page(self, instance):
-        if self.current_page > 1:
-            self.current_page -= 1
+                    self.table_layout.add_widget(MDLabel(
+                        text=text,
+                        halign='center',
+                        valign='middle',
+                        size_hint_y=None,
+                        height=40,
+                        size_hint_x=None,
+                        width=width,
+                        text_size=(width, None),
+                    ))
 
     def view_teachers_of_subject(self, subject_id):
         teachers_data = get_teachers_by_subject(subject_id)
@@ -1076,106 +993,6 @@ class PaginatedTableView(MDBoxLayout):
             toast("Failed to add teacher.")
 
         self.close_add_dialog(None)
-
-    def edit_teacher_in_subject(self, teacher_code):
-        teacher = next((item for item in self.full_data if item.get('TeacherCode') == teacher_code), None)
-        if not teacher:
-            toast("Teacher not found.")
-            return
-
-        subjects = get_all_subjects()
-        if not subjects:
-            toast("Could not load subjects.")
-            return
-
-        edit_layout = MDBoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None, height=280)
-
-        self.teacher_name_field = MDTextField(
-            hint_text="Name",
-            text=teacher.get('TeacherName', ''),
-            size_hint_y=None,
-            height=40,
-        )
-        self.email_field = MDTextField(
-            hint_text="Email",
-            text=teacher.get('Email', ''),
-            size_hint_y=None,
-            height=40,
-        )
-
-        # Find the current subject in subjects list
-        current_subject = next((s for s in subjects if str(s['subjectid']) == str(self.viewing_subject_id)), None)
-        
-        self.subject_field = MDTextField(
-            hint_text="Select Subject",
-            text=current_subject['subjectname'] if current_subject else 'Select Subject',
-            size_hint_y=None,
-            height=40,
-            mode="rectangle",
-            readonly=True,
-        )
-
-        self.subject_dropdown = DropDown()
-        for subject_item in subjects:
-            btn = Button(
-                text=subject_item["subjectname"],
-                size_hint_y=None,
-                height=40,
-            )
-            btn.bind(on_release=lambda btn, sid=subject_item["subjectid"], sname=subject_item["subjectname"]: self.set_subject(sid, sname))
-            self.subject_dropdown.add_widget(btn)
-
-        self.subject_field.bind(on_touch_down=self.open_subject_dropdown)
-        
-        # Set initial selected subject ID
-        self.selected_subject_id = self.viewing_subject_id
-
-        edit_layout.add_widget(self.teacher_name_field)
-        edit_layout.add_widget(self.email_field)
-        edit_layout.add_widget(self.subject_field)
-
-        self.edit_dialog = MDDialog(
-            title=f"Edit Teacher {teacher_code}",
-            type="custom",
-            content_cls=edit_layout,
-            buttons=[
-                MDRaisedButton(
-                    text="Save",
-                    on_release=lambda instance: self.save_teacher_changes_in_subject(teacher_code)
-                ),
-                MDRaisedButton(
-                    text="Cancel",
-                    on_release=self.close_edit_dialog
-                )
-            ]
-        )
-        self.edit_dialog.open()
-
-    def save_teacher_changes_in_subject(self, teacher_code):
-        new_name = self.teacher_name_field.text.strip()
-        new_email = self.email_field.text.strip()
-        new_subject_id = self.selected_subject_id
-
-        if not new_name or not new_email or not new_subject_id:
-            toast("All fields are required.")
-            return
-
-        import re
-        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", new_email):
-            toast("Invalid email format.")
-            return
-
-        success = ad_update_teacher_details(teacher_code, new_name, new_subject_id, new_email)
-        if success:
-            toast("Teacher updated successfully.")
-            # Always refresh with the current viewing subject's teachers
-            self.full_data = get_teachers_by_subject(self.viewing_subject_id)
-            self.filtered_data = self.full_data
-            self.update_table()
-        else:
-            toast("Failed to update teacher.")
-
-        self.close_edit_dialog(None)
 
     def edit_class(self, class_id):
         # Get class data from the filtered_data

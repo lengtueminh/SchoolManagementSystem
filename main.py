@@ -3,6 +3,9 @@ from kivymd.uix.screenmanager import ScreenManager
 from screens.login_screen import LoginScreen
 from screens.teacher import TeacherHomeScreen, TeacherClassesScreen
 from screens.admin import AdminHomeScreen
+from screens.admin.admin_teachers_screen import AdminTeachersScreen
+from screens.admin.admin_classes_screen import AdminClassesScreen
+from screens.admin.admin_subjects_screen import AdminSubjectsScreen
 from screens.student import StudentHomeScreen
 from screens.teacher.class_display import ClassDisplay
 
@@ -17,12 +20,21 @@ class SchoolManagementApp(MDApp):
         self.theme_cls.primary_palette = "Indigo"
         sm = ScreenManager()
 
-        sm.add_widget(LoginScreen(name="login_screen"))
-        sm.add_widget(TeacherHomeScreen(name="teacher_homescreen"))
-        sm.add_widget(StudentHomeScreen(name="student_screen"))
-        sm.add_widget(AdminHomeScreen(name="admin_homescreen"))
-        sm.add_widget(TeacherClassesScreen(name="teacher_classes"))
-        sm.add_widget(ClassDisplay(name="class_display"))
+        # Add all screens
+        screens = [
+            LoginScreen(name="login_screen"),
+            TeacherHomeScreen(name="teacher_homescreen"),
+            StudentHomeScreen(name="student_screen"),
+            AdminHomeScreen(name="admin_homescreen"),
+            TeacherClassesScreen(name="teacher_classes"),
+            ClassDisplay(name="class_display"),
+            AdminTeachersScreen(),
+            AdminClassesScreen(),
+            AdminSubjectsScreen()
+        ]
+        
+        for screen in screens:
+            sm.add_widget(screen)
 
         return sm
 
