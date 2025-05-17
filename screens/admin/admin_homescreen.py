@@ -13,7 +13,7 @@ from kivy.clock import Clock
 from kivy.properties import NumericProperty, ListProperty, StringProperty, DictProperty
 from kivymd.uix.gridlayout import MDGridLayout
 from kivy.core.window import Window
-from utils.db_utils import get_all_students, get_all_teachers, get_all_classes, get_all_subjects, ad_update_student_details, get_students_of_class, ad_update_teacher_details, ad_add_student, ad_add_teacher, ad_add_class, ad_add_subject, ad_delete_student, ad_delete_teacher, ad_delete_class, ad_delete_subject
+from utils.db_utils import get_all_teachers, get_all_classes, get_all_subjects, ad_update_student_details, get_students_of_class, ad_update_teacher_details, ad_add_student, ad_add_teacher, ad_add_class, ad_add_subject, ad_delete_student, ad_delete_teacher, ad_delete_class, ad_delete_subject, get_teachers_by_subject, get_classID_by_name
 
 class PaginatedTableView(MDBoxLayout):
     full_data = ListProperty([])
@@ -28,6 +28,7 @@ class PaginatedTableView(MDBoxLayout):
     required_width = NumericProperty(0)
     dialog = None
     edit_dialog = None
+    add_dialog = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -144,9 +145,18 @@ class PaginatedTableView(MDBoxLayout):
                             pos_hint={'center_y': 0.5},
                             on_release=lambda instance, cid=class_id: self.view_students_of_class(cid)
                         )
+                        delete_button = MDRaisedButton(
+                            text="Delete",
+                            size_hint=(None, None),
+                            size=(60, 40),
+                            pos_hint={'center_y': 0.5},
+                            on_release=lambda instance, cid=class_id: self.delete_item(cid, 'class')
+                        )
                         action_layout.add_widget(edit_button)
+                        action_layout.add_widget(delete_button)
                     elif self.headers == ['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action']:
                         student_code = item.get('code', '')
+                        class_id = get_classID_by_name(item.get('classname', ''))
                         edit_button = MDRaisedButton(
                             text="Edit",
                             size_hint=(None, None),
@@ -159,7 +169,7 @@ class PaginatedTableView(MDBoxLayout):
                             size_hint=(None, None),
                             size=(60, 40),
                             pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, scode=student_code: self.delete_item(scode, 'student')
+                            on_release=lambda instance, scode=student_code: self.delete_item(scode, 'student', class_id)
                         )
                         action_layout.add_widget(edit_button)
                         action_layout.add_widget(delete_button)
@@ -181,26 +191,15 @@ class PaginatedTableView(MDBoxLayout):
                         )
                         action_layout.add_widget(edit_button)
                         action_layout.add_widget(delete_button)
-                    elif self.headers == ['Class ID', 'Class Name', 'Action']:
-                        class_id = item.get('id', '')
-                        edit_button = MDRaisedButton(
-                            text="View Students",
+                    elif self.headers == ['Subject ID', 'Subject Name', 'Action']:
+                        subject_id = item.get('subjectid', '')
+                        view_teachers_button = MDRaisedButton(
+                            text="View Teachers",
                             size_hint=(None, None),
                             size=(120, 40),
                             pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, cid=class_id: self.view_students_of_class(cid)
+                            on_release=lambda instance, sid=subject_id: self.view_teachers_of_subject(sid)
                         )
-                        delete_button = MDRaisedButton(
-                            text="Delete",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, cid=class_id: self.delete_item(cid, 'class')
-                        )
-                        action_layout.add_widget(edit_button)
-                        action_layout.add_widget(delete_button)
-                    elif self.headers == ['Subject ID', 'Subject Name', 'Action']:
-                        subject_id = item.get('subjectid', '')
                         delete_button = MDRaisedButton(
                             text="Delete",
                             size_hint=(None, None),
@@ -208,6 +207,7 @@ class PaginatedTableView(MDBoxLayout):
                             pos_hint={'center_y': 0.5},
                             on_release=lambda instance, sid=subject_id: self.delete_item(sid, 'subject')
                         )
+                        action_layout.add_widget(view_teachers_button)
                         action_layout.add_widget(delete_button)
                     self.table_layout.add_widget(action_layout)
                 else:
@@ -236,12 +236,56 @@ class PaginatedTableView(MDBoxLayout):
                             text_size=(width, 40),
                         ))
 
+    def view_teachers_of_subject(self, subject_id):
+        teachers_data = get_teachers_by_subject(subject_id)
+        if not teachers_data:
+            toast(f"No teachers found for subject ID {subject_id}.")
+            return
+
+        content = PaginatedTableView(
+            full_data=teachers_data,
+            headers=['ID', 'Code', 'Name', 'Email'],
+            column_map={
+                'ID': 'TeacherID',
+                'Code': 'TeacherCode',
+                'Name': 'TeacherName',
+                'Email': 'Email'
+            },
+            search_fields=['name', 'code'],
+            column_widths={
+                'ID': 60,
+                'Code': 100,
+                'Name': 200,
+                'Email': 250
+            },
+            items_per_page=10,
+            size_hint_y=None,
+            height=Window.height * 0.7,
+        )
+        Clock.schedule_once(lambda dt: content.update_table(), 0)
+
+        self.dialog = MDDialog(
+            title=f"Teachers of Subject ID {subject_id}",
+            type="custom",
+            content_cls=content,
+            buttons=[
+                MDRaisedButton(text="Close", on_release=self.close_dialog)
+            ]
+        )
+        max_width = Window.width * 0.95
+        if content.required_width > max_width:
+            self.dialog.size_hint_x = None
+            self.dialog.width = max_width
+        else:
+            self.dialog.size_hint_x = None
+            self.dialog.width = content.required_width
+        self.dialog.open()
+
     def view_students_of_class(self, cid):
         students_data = get_students_of_class(cid)
         if not students_data:
             toast(f"No students found for class ID {cid}.")
             return
-
         content = PaginatedTableView(
             full_data=students_data,
             headers=['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action'],
@@ -275,7 +319,7 @@ class PaginatedTableView(MDBoxLayout):
             content_cls=content,
             buttons=[
                 MDRaisedButton(text="Close", on_release=self.close_dialog),
-                MDRaisedButton(text="Add", on_release=lambda instance: self.add_student())
+                MDRaisedButton(text="Add", on_release=lambda instance: content.add_student(cid))
             ]
         )
         max_width = Window.width * 0.95
@@ -440,13 +484,13 @@ class PaginatedTableView(MDBoxLayout):
         )
         self.edit_dialog.open()
 
-    def add_student(self):
+    def add_student(self, class_id=None):
         classes = get_all_classes()
         if not classes:
             toast("Could not load classes.")
             return
 
-        add_layout = MDBoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None, height=350)
+        add_layout = MDBoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None)
 
         self.add_name_field = MDTextField(
             hint_text="Name",
@@ -464,32 +508,38 @@ class PaginatedTableView(MDBoxLayout):
             height=40,
         )
 
-        self.add_class_field = MDTextField(
-            hint_text="Select Class",
-            text="Select Class",
-            size_hint_y=None,
-            height=40,
-            mode="rectangle",
-            readonly=True,
-        )
-
-        self.add_dropdown = DropDown()
-        for class_item in classes:
-            btn = Button(
-                text=class_item["classname"],
+        # Only add class selection if not in a class-specific view
+        if class_id is None:
+            self.add_class_field = MDTextField(
+                hint_text="Select Class",
+                text="Select Class",
                 size_hint_y=None,
                 height=40,
+                mode="rectangle",
+                readonly=True,
             )
-            btn.bind(on_release=lambda btn, cid=class_item["id"], cname=class_item["classname"]: self.set_class(cid, cname, 'add'))
-            self.add_dropdown.add_widget(btn)
 
-        self.add_class_field.bind(on_touch_down=self.open_add_dropdown)
-        self.selected_add_class_id = None
+            self.add_dropdown = DropDown()
+            for class_item in classes:
+                btn = Button(
+                    text=class_item["classname"],
+                    size_hint_y=None,
+                    height=40,
+                )
+                btn.bind(on_release=lambda btn, cid=class_item["id"], cname=class_item["classname"]: self.set_class(cid, cname, 'add'))
+                self.add_dropdown.add_widget(btn)
+
+            self.add_class_field.bind(on_touch_down=self.open_add_dropdown)
+            self.selected_add_class_id = None
+            add_layout.add_widget(self.add_class_field)
+            add_layout.height = 350
+        else:
+            self.selected_add_class_id = class_id
+            add_layout.height = 300  # Adjust height without class field
 
         add_layout.add_widget(self.add_name_field)
         add_layout.add_widget(self.add_address_field)
         add_layout.add_widget(self.add_birthdate_field)
-        add_layout.add_widget(self.add_class_field)
 
         self.add_dialog = MDDialog(
             title="Add New Student",
@@ -738,7 +788,7 @@ class PaginatedTableView(MDBoxLayout):
         if success:
             toast("Student added successfully.")
             if self.headers == ['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action']:
-                self.full_data = get_all_students()
+                self.full_data = get_students_of_class(new_class_id)
                 self.filtered_data = self.full_data
             else:
                 class_id = next((item['id'] for item in self.full_data if item.get('code') == student_code), None)
@@ -812,19 +862,20 @@ class PaginatedTableView(MDBoxLayout):
 
         self.close_add_dialog(None)
 
-    def delete_item(self, code, item_type):
+    def delete_item(self, code, item_type, class_id=None):
         if item_type == 'student':
             success = ad_delete_student(code)
+
             if success:
                 toast("Student deleted successfully.")
                 if self.headers == ['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action']:
-                    self.full_data = get_all_students()
+                    self.full_data = get_students_of_class(class_id)
                     self.filtered_data = self.full_data
                 else:
                     class_id = next((item['id'] for item in self.full_data if item.get('code') == code), None)
                     if class_id:
-                        self.full_data = get_students_of_class(class_id)
-                        self.filtered_data = self.full_data
+                            self.full_data = get_students_of_class(class_id)
+                            self.filtered_data = self.full_data
                 self.update_table()
             else:
                 toast("Failed to delete student.")
@@ -847,14 +898,21 @@ class PaginatedTableView(MDBoxLayout):
             else:
                 toast("Failed to delete class.")
         elif item_type == 'subject':
-            success = ad_delete_subject(code)
+            # Get all teachers associated with the subject
+            teachers = get_teachers_by_subject(code)
+            if teachers:
+                for teacher in teachers:
+                    teacher_code = teacher.get('code', '')
+                    ad_delete_teacher(teacher_code)  # Delete each teacher
+            # Now delete the subject
+            success, message = ad_delete_subject(code)
             if success:
-                toast("Subject deleted successfully.")
+                toast("Subject and associated teachers deleted successfully.")
                 self.full_data = get_all_subjects()
                 self.filtered_data = self.full_data
                 self.update_table()
             else:
-                toast("Failed to delete subject.")
+                toast(message)
 
     def close_dialog(self, instance):
         if self.dialog:
@@ -896,13 +954,12 @@ class AdminHomeScreen(MDScreen):
 
         buttons_layout = MDBoxLayout(orientation="vertical", spacing=15, size_hint=(0.6, None), height=300, pos_hint={"center_x": 0.5, "center_y": 0.5})
 
-        students_button = MDRaisedButton(text="View Students", on_release=self.show_students_table)
         teachers_button = MDRaisedButton(text="View Teachers", on_release=self.show_teachers_table)
         classes_button = MDRaisedButton(text="View Classes", on_release=self.show_classes_table)
         subjects_button = MDRaisedButton(text="View Subjects", on_release=self.show_subjects_table)
         logout_button = MDRaisedButton(text="Log out", on_release=self.logout)
 
-        buttons_layout.add_widget(students_button)
+
         buttons_layout.add_widget(teachers_button)
         buttons_layout.add_widget(classes_button)
         buttons_layout.add_widget(subjects_button)
@@ -917,56 +974,7 @@ class AdminHomeScreen(MDScreen):
         app.role = None
         self.manager.current = "login_screen"
 
-    def show_students_table(self, instance):
-        students_data = get_all_students()
-        if students_data:
-            content = PaginatedTableView(
-                full_data=students_data,
-                headers=['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action'],
-                column_map={
-                    'ID': 'id',
-                    'Code': 'code',
-                    'Name': 'name',
-                    'Birthday': 'birthdate',
-                    'Class': 'classname',
-                    'Address': 'address'
-                },
-                search_fields=['name', 'code'],
-                column_widths={
-                    'ID': 60,
-                    'Code': 100,
-                    'Name': 200,
-                    'Birthday': 100,
-                    'Class': 100,
-                    'Address': 300,
-                    'Action': 150
-                },
-                items_per_page=10,
-                size_hint_y=None,
-                height=Window.height * 0.7,
-            )
-            Clock.schedule_once(lambda dt: content.update_table(), 0)
-
-            self.dialog = MDDialog(
-                title="Students List",
-                type="custom",
-                content_cls=content,
-                buttons=[
-                    MDRaisedButton(text="Close", on_release=self.close_dialog),
-                    MDRaisedButton(text="Add", on_release=lambda instance: content.add_student())
-                ]
-            )
-            max_width = Window.width * 0.95
-            if content.required_width > max_width:
-                self.dialog.size_hint_x = None
-                self.dialog.width = max_width
-            else:
-                self.dialog.size_hint_x = None
-                self.dialog.width = content.required_width
-            self.dialog.open()
-        else:
-            toast("Could not load students data.")
-
+    
     def show_teachers_table(self, instance):
         teachers_data = get_all_teachers()
         if teachers_data:
@@ -1069,9 +1077,9 @@ class AdminHomeScreen(MDScreen):
                 },
                 search_fields=['subjectname'],
                 column_widths={
-                    'Subject ID': 60,
+                    'Subject ID': 100,
                     'Subject Name': 300,
-                    'Action': 150
+                    'Action': 350
                 },
                 items_per_page=10,
                 size_hint_y=None,
@@ -1102,3 +1110,7 @@ class AdminHomeScreen(MDScreen):
     def close_dialog(self, instance):
         if self.dialog:
             self.dialog.dismiss()
+
+
+
+
