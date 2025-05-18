@@ -373,13 +373,17 @@ def update_teacher_details(teacher_code, new_name, new_email):
             connection.close()
     return False
 
-def submit_grade_to_db(teacher_code, student_code, grade, percentage):
+def submit_grade_to_db(teacher_code, student_code, percentage, grade):
     connection = connect_db()
     if connection:
         try:
             cursor = connection.cursor()
-
-            cursor.callproc("AddGradeByTeacherCode", (teacher_code, student_code, percentage, grade))
+            # Get subject ID for the teacher
+            cursor.execute("SELECT SubjectID FROM Teachers WHERE TeacherCode = %s", (teacher_code,))
+            subject_id = cursor.fetchone()[0]
+            
+            # Fixed parameter order: teacher_code, student_code, subject_id, percentage, grade
+            cursor.callproc("AddGradeByTeacherCode", (teacher_code, student_code, subject_id, percentage, grade))
             connection.commit()
             return True
         except Error as e:

@@ -487,6 +487,88 @@ BEGIN
 END//
 DELIMITER ;
 
+-- Add Grade with Teacher Code
+DELIMITER //
+CREATE PROCEDURE AddGradeWithTeacherCode(
+    IN p_TeacherCode VARCHAR(20),
+    IN p_StudentCode VARCHAR(20),
+    IN p_SubjectID INT,
+    IN p_Percentage DECIMAL(3,2),
+    IN p_Score DECIMAL(4,2)
+)
+BEGIN
+    DECLARE v_TeacherID INT;
+    DECLARE v_StudentID INT;
+    DECLARE v_ClassID INT;
+    DECLARE v_TeacherClassID INT;
+
+    -- Get TeacherID from TeacherCode
+    SELECT TeacherID INTO v_TeacherID
+    FROM Teachers 
+    WHERE TeacherCode = p_TeacherCode;
+
+    -- Get StudentID and ClassID from StudentCode
+    SELECT StudentID, ClassID INTO v_StudentID, v_ClassID
+    FROM Students 
+    WHERE StudentCode = p_StudentCode;
+
+    -- Check if teacher teaches this class
+    SELECT TeacherID INTO v_TeacherClassID 
+    FROM Teacher_Class 
+    WHERE TeacherID = v_TeacherID AND ClassID = v_ClassID;
+
+    -- If teacher teaches this class, add the grade
+    IF v_TeacherClassID IS NOT NULL THEN
+        INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
+        VALUES (v_StudentID, p_SubjectID, p_Percentage, p_Score);
+    ELSE
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Unauthorized: Teacher does not teach this student''s class.';
+    END IF;
+END //
+DELIMITER ;
+
+-- Add Grade by Teacher Code
+DELIMITER //
+CREATE PROCEDURE AddGradeByTeacherCode(
+    IN p_TeacherCode VARCHAR(20),
+    IN p_StudentCode VARCHAR(20),
+    IN p_SubjectID INT,
+    IN p_Percentage DECIMAL(3,2),
+    IN p_Score DECIMAL(4,2)
+)
+BEGIN
+    DECLARE v_TeacherID INT;
+    DECLARE v_StudentID INT;
+    DECLARE v_ClassID INT;
+    DECLARE v_TeacherClassID INT;
+
+    -- Get TeacherID from TeacherCode
+    SELECT TeacherID INTO v_TeacherID
+    FROM Teachers 
+    WHERE TeacherCode = p_TeacherCode;
+
+    -- Get StudentID and ClassID from StudentCode
+    SELECT StudentID, ClassID INTO v_StudentID, v_ClassID
+    FROM Students 
+    WHERE StudentCode = p_StudentCode;
+
+    -- Check if teacher teaches this class
+    SELECT TeacherID INTO v_TeacherClassID 
+    FROM Teacher_Class 
+    WHERE TeacherID = v_TeacherID AND ClassID = v_ClassID;
+
+    -- If teacher teaches this class, add the grade
+    IF v_TeacherClassID IS NOT NULL THEN
+        INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
+        VALUES (v_StudentID, p_SubjectID, p_Percentage, p_Score);
+    ELSE
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Unauthorized: Teacher does not teach this student''s class.';
+    END IF;
+END //
+DELIMITER ;
+
 INSERT INTO Subjects (SubjectName) VALUES
 ('Math'),('Science'),('History'),('English'),('Art'),('Music'),('Physical Education'),('Computer Science'),('Foreign Language');
 
