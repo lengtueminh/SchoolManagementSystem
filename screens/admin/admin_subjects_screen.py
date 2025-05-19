@@ -178,10 +178,11 @@ class AdminSubjectsScreen(MDScreen):
 
     def view_teachers(self, row):
         subject_id = row['subjectid']
-        from utils.db_utils import get_teachers_by_subject
+        from utils.db_utils import get_teachers_by_subject, get_all_subjects
         teachers = get_teachers_by_subject(subject_id)
+        
         content = PaginatedTableView(
-            full_data=teachers,
+            full_data=teachers if teachers else [],
             headers=['ID', 'Code', 'Name', 'Email', 'Action'],
             column_map={
                 'ID': 'id',
@@ -206,15 +207,25 @@ class AdminSubjectsScreen(MDScreen):
             delete_callback=self.delete_teacher_in_subject
         )
         Clock.schedule_once(lambda dt: content.update_table(), 0)
+
+        def update_main_screen():
+            # Update the main screen's data
+            subjects_data = get_all_subjects()
+            self.content.full_data = subjects_data
+            self.content.filtered_data = subjects_data
+            self.content.update_table()
+
         self.dialog = MDDialog(
             title=f"Teachers for Subject {row['subjectname']}",
             type="custom",
             content_cls=content,
             buttons=[
                 MDRaisedButton(text="Close", on_release=self.close_dialog),
-                MDRaisedButton(text="Add Teacher", on_release=lambda instance: content.add_teacher(subject_id))
+                MDRaisedButton(text="Add Teacher", on_release=lambda instance: content.add_teacher_to_subject(subject_id, update_main_screen))
             ]
         )
+        # Store the subject_id in the dialog for later use
+        self.dialog.subject_id = subject_id
         self.dialog.open()
 
     def edit_teacher_in_subject(self, row):
@@ -249,18 +260,25 @@ class AdminSubjectsScreen(MDScreen):
         self.delete_teacher_dialog.open()
 
     def confirm_delete_teacher_in_subject(self, teacher_code):
-        from utils.db_utils import ad_delete_teacher, get_teachers_by_subject
+        from utils.db_utils import ad_delete_teacher, get_teachers_by_subject, get_all_subjects
         success = ad_delete_teacher(teacher_code)
         if success:
             toast("Teacher deleted successfully!")
             # Cập nhật lại danh sách giáo viên trong dialog
             if hasattr(self, 'dialog') and self.dialog:
-                subject_id = self.dialog.content_cls.full_data[0]['subjectid'] if self.dialog.content_cls.full_data else None
+                # Use the stored subject_id instead of trying to get it from the data
+                subject_id = self.dialog.subject_id
                 if subject_id:
                     teachers = get_teachers_by_subject(subject_id)
                     self.dialog.content_cls.full_data = teachers
                     self.dialog.content_cls.filtered_data = teachers
                     self.dialog.content_cls.update_table()
+                    
+                    # Cập nhật lại dữ liệu ở màn hình chính
+                    subjects_data = get_all_subjects()
+                    self.content.full_data = subjects_data
+                    self.content.filtered_data = subjects_data
+                    self.content.update_table()
         else:
             toast("Failed to delete teacher.")
         self.delete_teacher_dialog.dismiss()

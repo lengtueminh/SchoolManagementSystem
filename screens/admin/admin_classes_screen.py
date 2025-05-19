@@ -205,12 +205,9 @@ class AdminClassesScreen(MDScreen):
     def view_students(self, row):
         class_id = row['id']
         students_data = get_students_of_class(class_id)
-        if not students_data:
-            toast(f"No students found in this class.")
-            return
-
+        
         content = PaginatedTableView(
-            full_data=students_data,
+            full_data=students_data if students_data else [],
             headers=['ID', 'Code', 'Name', 'Birthday', 'Class', 'Address', 'Action'],
             column_map={
                 'ID': 'id',
@@ -240,13 +237,20 @@ class AdminClassesScreen(MDScreen):
         )
         Clock.schedule_once(lambda dt: content.update_table(), 0)
 
+        def update_main_screen():
+            # Update the main screen's data
+            classes_data = get_all_classes()
+            self.content.full_data = classes_data
+            self.content.filtered_data = classes_data
+            self.content.update_table()
+
         self.dialog = MDDialog(
-            title=f"Students in Class",
+            title=f"Students in Class {row['classname']}",
             type="custom",
             content_cls=content,
             buttons=[
                 MDRaisedButton(text="Close", on_release=self.close_dialog),
-                MDRaisedButton(text="Add Student", on_release=lambda instance: content.add_student(class_id))
+                MDRaisedButton(text="Add Student", on_release=lambda instance: content.add_student(class_id, update_main_screen))
             ]
         )
         self.dialog.open()

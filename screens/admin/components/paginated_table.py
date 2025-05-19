@@ -445,7 +445,7 @@ class PaginatedTableView(MDBoxLayout):
         )
         self.edit_dialog.open()
 
-    def add_student(self, class_id=None):
+    def add_student(self, class_id=None, update_callback=None):
         classes = get_all_classes()
         if not classes:
             toast("Could not load classes.")
@@ -509,7 +509,7 @@ class PaginatedTableView(MDBoxLayout):
             buttons=[
                 MDRaisedButton(
                     text="Save",
-                    on_release=lambda instance: self.save_new_student()
+                    on_release=lambda instance: self.save_new_student(update_callback)
                 ),
                 MDRaisedButton(
                     text="Cancel",
@@ -736,7 +736,7 @@ class PaginatedTableView(MDBoxLayout):
 
         self.close_edit_dialog(None)
 
-    def save_new_student(self):
+    def save_new_student(self, update_callback=None):
         new_name = self.add_name_field.text.strip()
         new_address = self.add_address_field.text.strip()
         new_birthdate = self.add_birthdate_field.text.strip()
@@ -758,6 +758,9 @@ class PaginatedTableView(MDBoxLayout):
             self.full_data = get_students_of_class(new_class_id)
             self.filtered_data = self.full_data
             self.update_table()
+            # Call the update callback if provided
+            if update_callback:
+                update_callback()
         else:
             toast("Failed to add student.")
 
@@ -896,7 +899,7 @@ class PaginatedTableView(MDBoxLayout):
         if self.add_dialog:
             self.add_dialog.dismiss()
 
-    def add_teacher_to_subject(self, subject_id):
+    def add_teacher_to_subject(self, subject_id, update_callback=None):
         add_layout = MDBoxLayout(orientation='vertical', padding=10, spacing=10, size_hint_y=None, height=280)
 
         self.add_teacher_name_field = MDTextField(
@@ -920,7 +923,7 @@ class PaginatedTableView(MDBoxLayout):
             buttons=[
                 MDRaisedButton(
                     text="Save",
-                    on_release=lambda instance: self.save_new_teacher_to_subject(subject_id)
+                    on_release=lambda instance: self.save_new_teacher_to_subject(subject_id, update_callback)
                 ),
                 MDRaisedButton(
                     text="Cancel",
@@ -930,7 +933,7 @@ class PaginatedTableView(MDBoxLayout):
         )
         self.add_dialog.open()
 
-    def save_new_teacher_to_subject(self, subject_id):
+    def save_new_teacher_to_subject(self, subject_id, update_callback=None):
         new_name = self.add_teacher_name_field.text.strip()
         new_email = self.add_email_field.text.strip()
 
@@ -952,6 +955,9 @@ class PaginatedTableView(MDBoxLayout):
                 self.full_data = get_teachers_by_subject(subject_id)
                 self.filtered_data = self.full_data
                 self.update_table()
+            # Call the update callback if provided
+            if update_callback:
+                update_callback()
         else:
             toast("Failed to add teacher.")
 
