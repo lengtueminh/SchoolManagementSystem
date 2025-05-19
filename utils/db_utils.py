@@ -936,3 +936,20 @@ def get_student_count_by_class(class_id):
             cursor.close()
         if conn:
             conn.close()
+
+def ad_update_subject(subject_id, new_name):
+    connection = connect_db()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            query = 'UPDATE Subjects SET SubjectName = %s WHERE SubjectID = %s'
+            cursor.execute(query, (new_name, subject_id))
+            connection.commit()
+            return True
+        except Exception as e:
+            print(f"Failed to update subject: {e}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
+    return False

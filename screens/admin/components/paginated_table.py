@@ -1092,3 +1092,4 @@ class PaginatedTableView(MDBoxLayout):
                 cursor.close()
                 connection.close()
         return False 
+    
