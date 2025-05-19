@@ -1,13 +1,17 @@
 import mysql.connector
 from mysql.connector import Error
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def connect_db():
     try:
         connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="tueminh25",    # CHANGE PASSWORD HERE 
-            database="SchoolManagementSystem"
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'root'),
+            password=os.getenv('DB_PASSWORD', 'your_password'),
+            database=os.getenv('DB_NAME', 'SchoolManagementSystem')
         )
         return connection
     except Error as e:
