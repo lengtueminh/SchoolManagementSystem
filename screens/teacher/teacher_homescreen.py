@@ -9,7 +9,7 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.toast import toast
 from kivymd.uix.card import MDCard
 from kivymd.uix.list import IconLeftWidget
-from utils.db_utils import check_student_exists, get_teacher_name, get_teacher_details, get_teacher_classes, update_teacher_details, submit_grade_to_db
+from utils.db_utils import check_student_exists, get_teacher_name, get_teacher_details, get_teacher_classes, update_teacher_details, submit_grade_to_db, get_subject_id_by_teacher_code
 
 
 class TeacherHomeScreen(MDScreen):
@@ -404,8 +404,14 @@ class TeacherHomeScreen(MDScreen):
         if not check_student_exists(student_code):
             toast("Student code does not exist.")
             return
+
+        # Get subject_id for the teacher
+        subject_id = get_subject_id_by_teacher_code(teacher_code)
+        if not subject_id:
+            toast("Teacher is not assigned to any subject.")
+            return
     
-        success = submit_grade_to_db(teacher_code, student_code, percentage, grade)
+        success = submit_grade_to_db(teacher_code, student_code, subject_id, percentage, grade)
 
         if success:
             toast("Grade submitted successfully!")

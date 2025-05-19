@@ -9,7 +9,7 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.properties import NumericProperty, ListProperty, StringProperty, DictProperty
+from kivy.properties import NumericProperty, ListProperty, StringProperty, DictProperty, BooleanProperty, ObjectProperty
 from utils.db_utils import (
     get_all_teachers, get_all_classes, get_all_subjects, get_all_students,
     ad_update_student_details, get_students_of_class,
@@ -35,6 +35,12 @@ class PaginatedTableView(MDBoxLayout):
     edit_dialog = None
     add_dialog = None
     viewing_subject_id = None
+    show_edit = BooleanProperty(False)
+    show_delete = BooleanProperty(False)
+    show_view = BooleanProperty(False)
+    edit_callback = ObjectProperty(None)
+    delete_callback = ObjectProperty(None)
+    view_callback = ObjectProperty(None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -139,79 +145,36 @@ class PaginatedTableView(MDBoxLayout):
                 width = self.column_widths.get(header, 100)
                 if header == 'Action':
                     action_layout = MDBoxLayout(orientation='horizontal', spacing=5, size_hint_y=None, height=40)
-                    
-                    # Add action buttons based on table type
-                    if self.headers == ['Class ID', 'Class Name', 'Action']:
-                        class_id = item.get('id', '')
+                    # Use the show_edit, show_view, show_delete flags and callbacks
+                    if self.show_edit and self.edit_callback:
                         edit_button = MDRaisedButton(
                             text="Edit",
                             size_hint=(None, None),
                             size=(60, 40),
                             pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, cid=class_id: self.edit_class(cid)
+                            on_release=lambda instance, row=item: self.edit_callback(row)
                         )
+                        action_layout.add_widget(edit_button)
+                    if self.show_view and self.view_callback:
+                        # Đổi tên nút nếu là màn hình subject
+                        view_text = "View Teachers" if self.headers == ['Subject ID', 'Subject Name', 'Total Teachers', 'Action'] else "View Students"
                         view_button = MDRaisedButton(
-                            text="View Students",
+                            text=view_text,
                             size_hint=(None, None),
                             size=(120, 40),
                             pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, cid=class_id: self.view_students_of_class(cid)
+                            on_release=lambda instance, row=item: self.view_callback(row)
                         )
-                        delete_button = MDRaisedButton(
-                            text="Delete",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, cid=class_id: self.delete_item(cid, 'class')
-                        )
-                        action_layout.add_widget(edit_button)
                         action_layout.add_widget(view_button)
-                        action_layout.add_widget(delete_button)
-                    elif self.headers == ['ID', 'Code', 'Name', 'Subject', 'Email', 'Action']:
-                        teacher_code = item.get('code', '')
-                        edit_button = MDRaisedButton(
-                            text="Edit",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, tcode=teacher_code: self.edit_teacher(tcode)
-                        )
+                    if self.show_delete and self.delete_callback:
                         delete_button = MDRaisedButton(
                             text="Delete",
                             size_hint=(None, None),
                             size=(60, 40),
                             pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, tcode=teacher_code: self.delete_item(tcode, 'teacher')
+                            on_release=lambda instance, row=item: self.delete_callback(row)
                         )
-                        action_layout.add_widget(edit_button)
                         action_layout.add_widget(delete_button)
-                    elif self.headers == ['Subject ID', 'Subject Name', 'Total Teachers', 'Action']:
-                        subject_id = item.get('subjectid', '')
-                        edit_button = MDRaisedButton(
-                            text="Edit",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, sid=subject_id: self.edit_subject(sid)
-                        )
-                        view_button = MDRaisedButton(
-                            text="View Teachers",
-                            size_hint=(None, None),
-                            size=(120, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, sid=subject_id: self.view_teachers_of_subject(sid)
-                        )
-                        delete_button = MDRaisedButton(
-                            text="Delete",
-                            size_hint=(None, None),
-                            size=(60, 40),
-                            pos_hint={'center_y': 0.5},
-                            on_release=lambda instance, sid=subject_id: self.delete_item(sid, 'subject')
-                        )
-                        action_layout.add_widget(edit_button)
-                        action_layout.add_widget(view_button)
-                        action_layout.add_widget(delete_button)
-                    
                     self.table_layout.add_widget(action_layout)
                 else:
                     actual_key = self.column_map.get(header, header.lower())

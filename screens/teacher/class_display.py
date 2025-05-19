@@ -12,6 +12,7 @@ from kivymd.uix.textfield import MDTextField
 from kivy.metrics import dp
 from utils.db_utils import get_students_in_class_with_gpa, get_student_grade_details, get_subject_id_by_teacher_code, get_class_name_by_id
 from utils.db_utils import update_student_grade, get_student_id_by_code
+from kivymd.toast import toast
 
 
 class ClassDisplay(MDScreen):
@@ -194,18 +195,22 @@ class ClassDisplay(MDScreen):
 
     def edit_student_grade(self, instance):
         self.dialog.dismiss()
-        # Tạo dialog mới để nhập điểm
+        # Get current grades for the student
+        app = MDApp.get_running_app()
+        teacher_code = app.username
+        subject_id = get_subject_id_by_teacher_code(teacher_code)
+        grade_details = get_student_grade_details(self.dialog.student_code, subject_id)
+        
+        # Create input fields with current grades
         self.grade_inputs = {
-            "attendance": MDTextField(hint_text="Attendance (10%)"),
-            "midterm": MDTextField(hint_text="Midterm (40%)"),
-            "final": MDTextField(hint_text="Final (50%)"),
+            "attendance": MDTextField(hint_text="Attendance (10%)", text=str(grade_details[1]) if grade_details and grade_details[1] is not None else ""),
+            "midterm": MDTextField(hint_text="Midterm (40%)", text=str(grade_details[2]) if grade_details and grade_details[2] is not None else ""),
+            "final": MDTextField(hint_text="Final (50%)", text=str(grade_details[3]) if grade_details and grade_details[3] is not None else ""),
         }
-
 
         content = MDBoxLayout(orientation="vertical", size_hint_y=None, height=300, padding=10)
         for field in self.grade_inputs.values():
             content.add_widget(field)
-
 
         self.edit_dialog = MDDialog(
             title="Edit Grades",
@@ -221,40 +226,46 @@ class ClassDisplay(MDScreen):
 
     def save_updated_grade(self, instance):
         try:
+            # Get current grades first
+            app = MDApp.get_running_app()
+            teacher_code = app.username
+            subject_id = get_subject_id_by_teacher_code(teacher_code)
+            grade_details = get_student_grade_details(self.dialog.student_code, subject_id)
+            
+            # Get new grades from input fields, use existing grades if fields are empty
             attendance_text = self.grade_inputs["attendance"].text.strip()
             midterm_text = self.grade_inputs["midterm"].text.strip()
             final_text = self.grade_inputs["final"].text.strip()
 
-
-            if not attendance_text or not midterm_text or not final_text:
-                raise ValueError("Please fill all grade fields.")
-
-
-            attendance = float(attendance_text)
-            midterm = float(midterm_text)
-            final = float(final_text)
-            gpa = round(attendance * 0.1 + midterm * 0.4 + final * 0.5, 2)
-
-
-            app = MDApp.get_running_app()
-            teacher_code = app.username
-            subject_id = get_subject_id_by_teacher_code(teacher_code)
-
+            # Use existing grades if fields are empty
+            attendance = float(attendance_text) if attendance_text else float(grade_details[1])
+            midterm = float(midterm_text) if midterm_text else float(grade_details[2])
+            final = float(final_text) if final_text else float(grade_details[3])
 
             student_code = self.dialog.student_code
-            student_id = get_student_id_by_code(student_code)  # bạn cần có hàm này
 
+            # Update each grade separately
+            success = True
+            if attendance_text:
+                success &= update_student_grade(teacher_code, student_code, subject_id, 0.10, attendance)
+            if midterm_text:
+                success &= update_student_grade(teacher_code, student_code, subject_id, 0.40, midterm)
+            if final_text:
+                success &= update_student_grade(teacher_code, student_code, subject_id, 0.50, final)
 
-            update_student_grade(student_id, subject_id, attendance, midterm, final, gpa)
+            if success:
+                self.edit_dialog.dismiss()
+                self.on_enter()  # refresh màn hình
+                toast("Grades updated successfully")
+            else:
+                toast("Failed to update grades")
 
-
-            self.edit_dialog.dismiss()
-            self.on_enter()  # refresh màn hình
         except ValueError as ve:
             print("Invalid input:", ve)
-            # Bạn có thể hiện thông báo lỗi bằng dialog để user biết
+            toast("Please enter valid numbers for grades")
         except Exception as e:
             print("Unexpected error:", e)
+            toast("An error occurred while saving grades")
 
 
 

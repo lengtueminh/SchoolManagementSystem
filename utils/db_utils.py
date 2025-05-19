@@ -280,42 +280,24 @@ def get_student_classes(student_code):
             connection.close()
     return []
 
-def update_student_grade(student_id, subject_id, attendance, midterm, final, gpa):
-    conn = connect_db()
-    cursor = conn.cursor()
-
+def update_student_grade(teacher_code, student_code, subject_id, percentage, grade):
     try:
-        # Delete existing grades for this student and subject
-        delete_query = """
-            DELETE FROM Grades 
-            WHERE StudentID = %s AND SubjectID = %s
-        """
-        cursor.execute(delete_query, (student_id, subject_id))
-
-        # Insert new grades
-        insert_query = """
-            INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
-            VALUES (%s, %s, %s, %s)
-        """
+        conn = connect_db()
+        cursor = conn.cursor()
         
-        # Insert attendance grade (10%)
-        cursor.execute(insert_query, (student_id, subject_id, 0.10, attendance))
-        
-        # Insert midterm grade (40%)
-        cursor.execute(insert_query, (student_id, subject_id, 0.40, midterm))
-        
-        # Insert final grade (50%)
-        cursor.execute(insert_query, (student_id, subject_id, 0.50, final))
-
+        # Call the stored procedure
+        cursor.callproc('UpdateGrade', (teacher_code, student_code, subject_id, percentage, grade))
         conn.commit()
-        return True
-    except Exception as e:
-        print(f"Error updating grades: {e}")
-        conn.rollback()
-        return False
-    finally:
+        
         cursor.close()
         conn.close()
+        return True
+    except Exception as e:
+        print("Error updating grade:", e)
+        if conn:
+            conn.rollback()
+            conn.close()
+        return False
 
 def get_student_id_by_code(student_code):
     conn = connect_db()
@@ -392,26 +374,25 @@ def update_teacher_details(teacher_code, new_name, new_email):
             connection.close()
     return False
 
-def submit_grade_to_db(teacher_code, student_code, percentage, grade):
-    connection = connect_db()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            # Get subject ID for the teacher
-            cursor.execute("SELECT SubjectID FROM Teachers WHERE TeacherCode = %s", (teacher_code,))
-            subject_id = cursor.fetchone()[0]
-            
-            # Fixed parameter order: teacher_code, student_code, subject_id, percentage, grade
-            cursor.callproc("AddGradeByTeacherCode", (teacher_code, student_code, subject_id, percentage, grade))
-            connection.commit()
-            return True
-        except Error as e:
-            print(f"Error submitting grade: {e}")
-            return False
-        finally:
+def submit_grade_to_db(teacher_code, student_code, subject_id, percentage, grade):
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        
+        # Call the stored procedure to add the grade
+        cursor.callproc('AddGradeWithTeacherCode', (teacher_code, student_code, subject_id, percentage, grade))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error submitting grade: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
             cursor.close()
-            connection.close()
-    return False
+        if conn:
+            conn.close()
 
 def check_student_exists(student_code):
     connection = connect_db()
@@ -535,21 +516,38 @@ def get_class_name_by_id(class_id):
     return result[0] if result else "Unknown Class"
 
 def get_students_of_class(class_id):
-    if class_id:
+    """Get all students in a specific class"""
+    try:
+        conn = connect_db()
+        cursor = conn.cursor(dictionary=True)
+        
         query = """
-            SELECT 
-                s.StudentID AS id,
-                s.StudentCode AS code,
-                s.StudentName AS name,
-                s.BirthDate AS birthdate,
-                c.ClassName AS classname,
-                s.Address AS address
-            FROM Students s
-            JOIN Classes c ON s.ClassID = c.ClassID
-            WHERE s.ClassID = %s
+        SELECT s.StudentID AS id, s.StudentCode AS code, s.StudentName AS name, s.BirthDate AS birthdate, c.ClassName AS classname, s.Address AS address
+        FROM Students s
+        JOIN Classes c ON s.ClassID = c.ClassID
+        WHERE s.ClassID = %s
+        ORDER BY s.StudentName
         """
-        return fetch_all(query, (class_id,))
-    return []
+        
+        cursor.execute(query, (class_id,))
+        students = cursor.fetchall()
+        
+        # Convert datetime objects to strings
+        for student in students:
+            if student['birthdate']:
+                student['birthdate'] = student['birthdate'].strftime('%Y-%m-%d')
+        
+        return students
+        
+    except Exception as e:
+        print(f"Error getting students of class: {str(e)}")
+        return []
+        
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
 
 def ad_update_student_details(student_code, new_name, new_address, new_birthdate, new_class_id):
     connection = connect_db()
@@ -745,11 +743,24 @@ def ad_delete_class(class_id):
     try:
         conn = connect_db()
         cursor = conn.cursor()
-        
-        cursor.execute('''
-            DELETE FROM Classes WHERE ClassID = %s
-        ''', (class_id,))
-        
+        # 1. Xóa các bản ghi teacher_class liên quan đến lớp này
+        cursor.execute('DELETE FROM Teacher_Class WHERE ClassID = %s', (class_id,))
+        conn.commit()
+        # 2. Lấy danh sách StudentID thuộc lớp này
+        cursor.execute('SELECT StudentID FROM Students WHERE ClassID = %s', (class_id,))
+        student_ids = [row[0] for row in cursor.fetchall()]
+        # 3. Xóa điểm và user liên quan đến các học sinh này
+        if student_ids:
+            format_strings = ','.join(['%s'] * len(student_ids))
+            cursor.execute(f'DELETE FROM Grades WHERE StudentID IN ({format_strings})', tuple(student_ids))
+            conn.commit()
+            cursor.execute(f'DELETE FROM Users WHERE StudentID IN ({format_strings})', tuple(student_ids))
+            conn.commit()
+        # 4. Xóa tất cả học sinh thuộc lớp này
+        cursor.execute('DELETE FROM Students WHERE ClassID = %s', (class_id,))
+        conn.commit()
+        # 5. Xóa lớp
+        cursor.execute('DELETE FROM Classes WHERE ClassID = %s', (class_id,))
         conn.commit()
         return cursor.rowcount > 0
     except Exception as e:
@@ -805,9 +816,16 @@ def get_teachers_by_subject(subject_id):
         try:
             cursor = connection.cursor(dictionary=True)
             query = '''
-                SELECT t.TeacherID, t.TeacherCode, t.TeacherName, t.Email
+                SELECT 
+                    t.TeacherID AS id,
+                    t.TeacherCode AS code,
+                    t.TeacherName AS name,
+                    s.SubjectName AS subjectname,
+                    t.Email AS email
                 FROM Teachers t
+                JOIN Subjects s ON t.SubjectID = s.SubjectID
                 WHERE t.SubjectID = %s
+                ORDER BY t.TeacherID ASC
             '''
             cursor.execute(query, (subject_id,))
             return cursor.fetchall()
