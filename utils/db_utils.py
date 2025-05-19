@@ -6,7 +6,7 @@ def connect_db():
         connection = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="thuhangtran128",    # CHANGE PASSWORD HERE 
+            password="tueminh25",    # CHANGE PASSWORD HERE 
             database="SchoolManagementSystem"
         )
         return connection
@@ -150,22 +150,26 @@ def get_students_in_class_with_gpa(class_id, subject_id):
     conn = connect_db()
     cursor = conn.cursor()
     query = """
-        SELECT
+        SELECT 
             st.StudentID,
             st.StudentCode,
             st.StudentName,
-            ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
-        FROM
+            ROUND(
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) * 0.10, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) * 0.40, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) * 0.50, 0),
+                2
+            ) AS GPA
+        FROM 
             Students st
         LEFT JOIN Grades g ON st.StudentID = g.StudentID AND g.SubjectID = %s
-        WHERE
+        WHERE 
             st.ClassID = %s
-        GROUP BY
+        GROUP BY 
             st.StudentID, st.StudentCode, st.StudentName
     """
     cursor.execute(query, (subject_id, class_id))
     result = cursor.fetchall()
-
 
     cursor.close()
     conn.close()
@@ -273,30 +277,41 @@ def get_student_classes(student_code):
     return []
 
 def update_student_grade(student_id, subject_id, attendance, midterm, final, gpa):
-
-
     conn = connect_db()
     cursor = conn.cursor()
-    query = """
-        UPDATE Grades
-        SET Score = %s
-        WHERE StudentID = %s AND SubjectID = %s AND Percentage = %s
-    """
 
+    try:
+        # Delete existing grades for this student and subject
+        delete_query = """
+            DELETE FROM Grades 
+            WHERE StudentID = %s AND SubjectID = %s
+        """
+        cursor.execute(delete_query, (student_id, subject_id))
 
-    data = [
-        (attendance, student_id, subject_id, 0.10),
-        (midterm, student_id, subject_id, 0.40),
-        (final, student_id, subject_id, 0.50),
-    ]
+        # Insert new grades
+        insert_query = """
+            INSERT INTO Grades (StudentID, SubjectID, Percentage, Score)
+            VALUES (%s, %s, %s, %s)
+        """
+        
+        # Insert attendance grade (10%)
+        cursor.execute(insert_query, (student_id, subject_id, 0.10, attendance))
+        
+        # Insert midterm grade (40%)
+        cursor.execute(insert_query, (student_id, subject_id, 0.40, midterm))
+        
+        # Insert final grade (50%)
+        cursor.execute(insert_query, (student_id, subject_id, 0.50, final))
 
-
-    for score_data in data:
-        cursor.execute(query, score_data)
-
-
-    conn.commit()
-    cursor.close()
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error updating grades: {e}")
+        conn.rollback()
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
 def get_student_id_by_code(student_code):
     conn = connect_db()
@@ -473,7 +488,12 @@ def get_student_grade_details(student_code, subject_id):
         MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score ELSE NULL END) AS Attendance,
         MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score ELSE NULL END) AS Midterm,
         MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score ELSE NULL END) AS Final,
-        ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
+        ROUND(
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) * 0.10, 0) +
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) * 0.40, 0) +
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) * 0.50, 0),
+            2
+        ) AS GPA
     FROM Grades g
     JOIN Subjects s ON g.SubjectID = s.SubjectID
     JOIN Students st ON g.StudentID = st.StudentID
@@ -485,31 +505,6 @@ def get_student_grade_details(student_code, subject_id):
     result = cursor.fetchone()
     conn.close()
     return result  # subject_name, attendance, midterm, final, gpa
-
-
-def get_students_in_class_with_gpa(class_id, subject_id):
-    conn = connect_db()
-    cursor = conn.cursor()
-    query = """
-        SELECT 
-            st.StudentID,
-            st.StudentCode,
-            st.StudentName,
-            ROUND(SUM(g.Percentage * g.Score), 2) AS GPA
-        FROM 
-            Students st
-        LEFT JOIN Grades g ON st.StudentID = g.StudentID AND g.SubjectID = %s
-        WHERE 
-            st.ClassID = %s
-        GROUP BY 
-            st.StudentID, st.StudentCode, st.StudentName
-    """
-    cursor.execute(query, (subject_id, class_id))
-    result = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-    return result  # List of (StudentID, StudentCode, StudentName, GPA)
 
 def get_subject_id_by_teacher_code(teacher_code):
     

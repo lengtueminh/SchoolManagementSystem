@@ -299,6 +299,8 @@ class TeacherHomeScreen(MDScreen):
 
         if success:
             toast("Updated successfully!")
+            # Refresh the screen to show updated information
+            self.on_enter()  # Refresh the entire screen
         else:
             toast("Failed to update!")
 

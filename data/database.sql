@@ -450,7 +450,12 @@ BEGIN
         MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
         MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
         MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
-        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
+        ROUND(
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) * 0.10, 0) +
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) * 0.40, 0) +
+            COALESCE(MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) * 0.50, 0),
+            2
+        ) AS GPA_Subject
     FROM Grades g
     JOIN Subjects s ON g.SubjectID = s.SubjectID
     WHERE g.StudentID = v_StudentID
@@ -468,22 +473,52 @@ BEGIN
     SELECT StudentID INTO v_StudentID
     FROM Students
     WHERE StudentCode = p_StudentCode;
+
     -- Truy xuất điểm theo môn học, gồm các thành phần và GPA từng môn
+    WITH SubjectGrades AS (
+        SELECT 
+            s.SubjectName,
+            MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
+            MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
+            MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
+            ROUND(
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) * 0.10, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) * 0.40, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) * 0.50, 0),
+                2
+            ) AS GPA_Subject
+        FROM Grades g
+        JOIN Subjects s ON g.SubjectID = s.SubjectID
+        WHERE g.StudentID = v_StudentID
+        GROUP BY s.SubjectName
+    )
     SELECT 
-        s.SubjectName,
-        MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) AS Score_10,
-        MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) AS Score_40,
-        MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) AS Score_50,
-        ROUND(SUM(g.Score * g.Percentage), 2) AS GPA_Subject
-    FROM Grades g
-    JOIN Subjects s ON g.SubjectID = s.SubjectID
-    WHERE g.StudentID = v_StudentID
-    GROUP BY s.SubjectName;
-    -- Trả về GPA chung của học sinh
+        SubjectName,
+        Score_10,
+        Score_40,
+        Score_50,
+        GPA_Subject
+    FROM SubjectGrades;
+
+    -- Tính GPA tổng thể
+    WITH SubjectGPAs AS (
+        SELECT 
+            s.SubjectID,
+            ROUND(
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.10 THEN g.Score END) * 0.10, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.40 THEN g.Score END) * 0.40, 0) +
+                COALESCE(MAX(CASE WHEN g.Percentage = 0.50 THEN g.Score END) * 0.50, 0),
+                2
+            ) AS GPA_Subject
+        FROM Grades g
+        JOIN Subjects s ON g.SubjectID = s.SubjectID
+        WHERE g.StudentID = v_StudentID
+        GROUP BY s.SubjectID
+        HAVING COUNT(DISTINCT g.Percentage) = 3  -- Chỉ tính môn học có đủ 3 điểm thành phần
+    )
     SELECT 
-        ROUND(SUM(g.Score * g.Percentage) / COUNT(DISTINCT g.SubjectID), 2) AS GPA_Total
-    FROM Grades g
-    WHERE g.StudentID = v_StudentID;
+        ROUND(AVG(GPA_Subject), 2) AS GPA_Total
+    FROM SubjectGPAs;
 END//
 DELIMITER ;
 

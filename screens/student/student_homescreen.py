@@ -393,6 +393,9 @@ class StudentHomeScreen(MDScreen):
 
         if success:
             toast("Updated successfully!")
+            # Refresh the screen to show updated information
+            self.student_info = get_student_info(app.username)
+            self.on_enter()  # Refresh the entire screen
         else:
             toast("Failed to update!")
 
